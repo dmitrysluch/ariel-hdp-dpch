@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    ports:
+      - "8123:8123"    # HTTP interface (used by clickhouse-connect)
+      - "9000:9000"    # Native TCP interface
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      - "CLICKHOUSE_USER=default"
+      - "CLICKHOUSE_PASSWORD=s3cur3"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dp-server
+    ports:
+      - "8000:8000"
+    depends_on:
+      - clickhouse
+    volumes:
+      - ./example_configs:/etc/dpch
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  clickhouse-data:
