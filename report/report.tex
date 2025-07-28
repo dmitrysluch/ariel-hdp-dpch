@@ -1,0 +1,316 @@
+\documentclass[12pt,letterpaper]{article}
+\usepackage{fullpage}
+\usepackage[top=2cm, bottom=4.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{amsmath,amsthm,amsfonts,amssymb,amscd}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage[utf8]{inputenc}
+% \usepackage[english]{babel}
+\usepackage{lastpage}
+\usepackage{enumerate}
+\usepackage{fancyhdr}
+\usepackage{mathrsfs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{dsfont}
+
+\hypersetup{%
+  colorlinks=true,
+  linkcolor=blue,
+  linkbordercolor={0 0 1}
+}
+ 
+\renewcommand\lstlistingname{Algorithm}
+\renewcommand\lstlistlistingname{Algorithms}
+\def\lstlistingautorefname{Alg.}
+
+\lstdefinestyle{Python}{
+    language        = Python,
+    frame           = lines, 
+    basicstyle      = \footnotesize,
+    keywordstyle    = \color{blue},
+    stringstyle     = \color{green},
+    commentstyle    = \color{red}\ttfamily
+}
+
+\setlength{\parindent}{0.0in}
+\setlength{\parskip}{0.05in}
+
+% Edit these as appropriate
+\newcommand\course{Ariel, HDP}
+\newcommand\hwnumber{1}                  % <-- homework number
+\newcommand\name{Sluch Dmitrii}
+
+\pagestyle{fancyplain}
+\headheight 35pt
+\lhead{\name\\\small{dmitrybsluch@gmail.com}}
+\chead{\textbf{\Large DPCH (Python Project)}}
+\rhead{\course \\ \today}
+\lfoot{}
+\cfoot{}
+\rfoot{\small\thepage}
+\headsep 1.5em
+
+\newcommand{\R}{\mathbb{R}}  
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\isdiv}{\hspace{1.5pt}\raisebox{-2.5pt}{\vdots}}
+\newcommand{\isndiv}{\not\isdiv}
+\newcommand{\limi}[1][n]{\lim\limits_{#1\to\infty}}
+\newcommand{\limz}[1][x]{\lim\limits_{#1\to0}}
+\newcommand{\limp}[1][x]{\lim\limits_{#1\to+\infty}}
+\newcommand{\limn}[1][t]{\lim\limits_{#1\to-\infty}}
+\newcommand{\lims}[1][n]{\operatorname{\overline{\limi[#1]}}}
+\newcommand{\sgn}{\operatorname{sign}}
+\let\eps\varepsilon
+\let\tab\indent
+\newcommand{\ifr}{\textit{if}}
+\newcommand{\othwr}{\textit{otherwise}}
+\newcommand{\os}{\overline{o}}
+\newcommand{\Ob}{\underline{O}}
+\newcommand{\sh}{\operatorname{sh}}
+\newcommand{\ch}{\operatorname{ch}}
+\newcommand{\arcsh}{\operatorname{arcsh}}
+\newcommand{\arcch}{\operatorname{arcch}}
+\newcommand{\ceil}[1]{\lceil#1\rceil}
+\newcommand{\floor}[1]{\lfloor#1\rfloor}
+\newcommand{\limd}[1]{\lim_{\substack{#1}}}
+\newcommand{\ang}[1]{\langle#1\rangle}
+\let\f\varphi
+\let\pr\partial
+\newcommand{\Uc}{\overset{\circ}{U}}
+\let\ds\displaystyle
+\newcommand\vm{&\vline &}
+\newcommand\vl{\bigg|}
+\newcommand{\sumi}[1][1]{\sum_{n = #1}^{\infty}}
+\newcommand{\E}{\operatorname{E}}
+\newcommand{\D}{\operatorname{D}}
+\newcommand{\cov}{\operatorname{cov}}
+\newcommand{\csim}{\overset{\textit{сх}}{\sim}}
+\newcommand{\inp}{\int_{-\pi}^{\pi}}
+\newcommand{\tr}{\operatorname{tr}}
+\renewcommand{\P}{\operatorname{P}}
+\newcommand{\NP}{\operatorname{NP}}
+\newcommand{\coNP}{\operatorname{coNP}}
+\newcommand{\poly}{\operatorname{poly}}
+\newcommand{\DTIME}{\operatorname{DTIME}}
+\newcommand{\EXP}{\operatorname{EXP}}
+\newcommand{\F}{\operatorname{F}}
+\newcommand{\p}{\operatorname{p}}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+\newtheorem{corollary}{Corollary}
+\newcommand{\Lap}{\operatorname{Lap}}
+\newcommand{\No}{\mathcal{N}}
+
+\begin{document}
+\section{Introduction}
+Differential privacy addresses the challenge of providing analytical access to datasets while maintaining individual privacy guarantees. Traditional anonymization techniques, which involve removing identifying information and data shuffling, have proven inadequate. Statistical analysis methods, when applied to publicly available or leaked databases, can effectively de-anonymize such data, linking it back to specific individuals.
+
+The differential privacy framework offers a robust solution to this challenge. It implements a controlled query execution mechanism where a server processes database queries while introducing carefully calibrated noise to the results. This approach maintains precise probabilistic invariants ensuring that aggregate query results remain statistically stable regardless of individual data points. The framework rejects queries that could potentially compromise privacy guarantees.\\
+
+This project encompasses three main components:
+\begin{enumerate}
+\item Exploring the theoretical foundations of differential privacy, examining the underlying probability theory concepts and key mathematical results
+\item Creating a Python-based implementation that provides differential privacy features for the ClickHouse database system (DPCH stands for Differential Privacy for ClickHouse)
+\item Conducting experimental analysis by executing queries on paired datasets with single-record differences, and evaluating the results using statistical and machine learning methods
+\end{enumerate}
+
+\subsection{Notation}
+Throughout this paper, we employ the following notation:
+\begin{itemize}
+  \item $\F[X]$ represents the cumulative distribution function (CDF) and $\p[X]$ represents the probability density function (PDF) of a random variable $X$.
+  \item $\mathcal{D}$ denotes the set of all possible datasets that can be queried.
+  \item $D$ and $D'$ represent two datasets that differ in exactly one row.
+  \item $f$ denotes a query function submitted by a user.
+  \item $\mathcal{A}$ represents the randomized algorithm executed by the server.
+  \item $S(f)$ denotes sensitivity of function $f$.
+  \item $K(f)$ for a Lipschitz function $f$ denotes its Lipschitz constant.
+  \item $I_m$ stands for $m \times m$-identity matrix.
+  \item $\Lap$ denotes Laplacian distribution, $\No$ - Normal, $\Phi(y)$ is a CDF of standard Gaussian, $\phi(y)$ for PDF.
+\end{itemize}
+
+\section{Theory behind Differential Privacy}
+
+The modern concept behind Differential Privacy was introduced in~\cite{dwork}. In this text we use slightly modified definition:
+
+\begin{definition}
+A randomized algorithm $\mathcal{A}$ is considered $(\eps, \delta)$-differentially private if for any set $S$ in the Borel sigma-algebra over $\R^n$ and for any two datasets $D, D'$ that differ in a single sample, the following holds:
+$$
+\Pr[\mathcal{A}(D) \in S] \leq e^{\eps}\Pr[\mathcal{A}(D') \in S] + \delta
+$$
+The algorithm is called pure $\eps$-differentially private if the bound holds for $\delta=0$
+\end{definition}
+
+Here is an example. Suppose we have a dataset with a single column of values from $\{0, 1\}$ and we want to compute the sum of these values. The server will respond using this algorithm:
+$$
+\mathcal{A}(D) = \sum_i D_i + \operatorname{Lap}\left(0, \frac{1}{\eps}\right),
+$$
+where $\operatorname{Lap}(0, 1)$ is Laplacian noise with the following PDF:
+$$
+F_{\operatorname{Lap}(\mu, b)}(y) = \frac{1}{2b}\exp(-\frac{|y - \mu|}{b}).
+$$
+
+As Laplacian distribution is absolutely continuous it's enough to show bound on relation of PDFs, and the bound on probability of all Borel sets will follow. Indeed
+suppose for any $\tau \in S$ for some Borel $S$,
+$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq e^\eps,$$
+then:
+$$\Pr[\mathcal{A}(D) \in S] = \int_{S}\p[\mathcal{A}(D)](\tau)d\tau \leq \int_{S}\eps \p[\mathcal{A}(D')](\tau)d\tau \leq \eps \Pr[\mathcal{A}(D') \in S].$$
+We are left to prove the bound on relation of PDFs.
+\begin{multline*}
+\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = 
+\exp\left(-\frac{|\tau - \sum_iD_i|}{1/\eps} + \frac{|\tau - \sum_iD'_i|}{1/\eps}\right) = \\
+\exp\left(\eps(|\tau - \sum_iD_i + \sum_iD_i - \sum_iD'_i| - |\tau - \sum_iD_i|)\right) \overset{\textit{triangle inequality}}{\leq} \\
+\exp\left(\eps|\sum_iD'_i - \sum_iD_i|\right) \leq e^{\eps}
+\end{multline*}
+The last inequality follows because if a single item in the dataset changes (from 0 to 1 or vice versa), the sum changes by at most 1. This shows we have an $(\eps, 0)$-differentially private algorithm for computing sums.
+
+\subsection{Algorithms for functions with bounded sensitivity}
+We use the notion of sensitivity to measure the amount of noise needed to make an algorithm differentially private.
+
+\begin{definition}
+Given a norm $d: \R^n \to \R_+$, the sensitivity of a function $f$ denoted $S(f)$ is defined as the supremum of $d(f(D), f(D'))$ over all datasets $D, D' \in \mathcal{D}$ differing in a single item. We say L1-sensitivity and L2-sensitivity for sensitivity with norm $d$ being $||*||_1$ and $||*||_2$
+\end{definition}
+
+\begin{definition}
+  A function $f: \R_n \to \R_m$ is Lipschitz with constant $K(f)$, given norms $d_1: \R^n \to \R_+$ and $d_2: \R^m \to \R_+$, if for any $x, x' \in R_n$ it holds that:
+  $$
+  d_2(f(x) - f(x')) \leq K(f)d_1(x - x')
+  $$
+\end{definition}
+
+Let us examine a fundamental property regarding sensitivity composition.
+\begin{remark}
+  \label{rm:lipschitz}
+For any function $f: \mathcal{D} \to \R_m$ with sensitivity $S(f)$ under norm $d_1$, and function $g: \R_m \to \R_k$ that is Lipschitz with constant $K(g)$ under norms $d_1,d_2$, their composition $g \circ f$ has sensitivity at most $K(g)S(f)$ under norm $d_2$.
+\end{remark}
+\begin{proof}
+  Consider any datasets $D, D'$ that differ in one element. By definition of sensitivity, $d_1(f(D) - f(D')) \leq S(f)$. Then applying the Lipschitz property of $g$:
+  $$d_2(g(f(D)) - g(f(D'))) \leq K(g)d_1(f(D) - f(D')) \leq K(g)S(f).$$
+\end{proof}
+
+% \begin{remark}
+%   \label{rm:mult_args}
+%   For a functions of several arguments following simple observation works. Suppose $f: \mathcal{D} \to \R_m$ is $S(f)$, $d_1$-sensitive, and $g: \R_{m_1} \times  \to \R_k$, $d_2 = ||*||_p$.
+% \end{remark}
+
+Now we are ready to provide two noising algorithms and corresponding bounds.
+
+\subsubsection{Laplacian Noise}
+
+\begin{theorem}
+  \label{thm:laplacian}
+Suppose $f: \mathcal{D} \to \R^m$ has L1-sensitivity $S(f)$. Then the following algorithm $\mathcal{A}$ is $(\eps, 0)$-differentially private:
+$$\mathcal{A}(D)_i := f(D)_i + \operatorname{Lap}(0, \frac{S(f)}{\eps}),$$
+that is we add independent Laplacian noise scaled by $\frac{S(f)}{\eps}$ to each element of the resulting vector.
+\end{theorem}
+\begin{proof}
+  The idea is the same as in the sum example. We study PDFs, and by absolute continuity, the bound translates to probability of arbitrary Borel sets. Fix arbitrary $\tau \in \R^m$. By independence of noise over vector elements:
+  \begin{multline*}
+    \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = 
+    \prod_{i}^m \frac{p[\Lap(0, S(f) / \eps)](\tau_i - f(D)_i)}{p[\Lap(0, S(f) / \eps)](\tau_i - f(D')_i)} = 
+    \prod_{i}^m \exp\left(-\frac{|\tau - f(D)_i|}{S(f)/\eps} + \frac{|\tau - f(D')_i|}{S(f)/\eps}\right) = \\
+    \prod_{i}^m \exp\left(\frac{\eps}{S(f)}(|\tau - f(D)_i + f(D)_i - f(D')_i| - |\tau - f(D)_i|)\right) \overset{\textit{triangle inequality}}{\leq} \\
+    \prod_{i}^m \exp\left(\frac{\eps}{S(f)}|f(D)_i - f(D')_i|\right) = \exp\left(\frac{\eps}{S(f)} \sum_i |f(D)_i - f(D')_i|\right) = \exp\left(\frac{\eps ||f(D) - f(D')||_1}{S(f)}\right) \leq \eps.
+    \end{multline*}
+\end{proof}
+
+\subsubsection{Gaussian Noise}
+
+The other option we have is applying Gaussian Noise. Analysis in this case is a bit harder, so we start with the univariate case.
+
+{\it Note: These bounds are known but proves I provide here I invented myself (although most likely it's the way these bounds are usually proved).}
+\begin{lemma}
+  \label{lm:gaussian}
+Suppose $f: \mathcal{D} \to \R$ has L2-sensitivity $S(f)$. Then for arbitrary $\alpha, \sigma > 0$ the following algorithm $\mathcal{A}$ is $\left(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}, 2 - 2\Phi(\alpha)\right)$-differentially private.
+$$\mathcal{A}(D) := f(D) + \operatorname{\No}(0, \sigma^2),$$
+\end{lemma}
+\begin{proof}
+  We start with bounds of relation of PDFs as before.
+  \begin{multline*}
+    \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = 
+    \frac{p[\No(0, \sigma^2)](\tau - f(D))}{p[\No(0,\sigma^2)](\tau_i - f(D')_i)} = 
+    \exp\left(-\frac{|\tau - f(D)_i|^2}{2\sigma^2} + \frac{|\tau - f(D')_i|^2}{2\sigma^2}\right) = \\
+    \exp\left(\frac{1}{2\sigma^2}(|\tau - f(D) + f(D) - f(D')|^2 - |\tau - f(D)|^2)\right) \leq \\
+    \exp\left(\frac{1}{2\sigma^2}(|f(D) - f(D')|^2 + 2|f(D) - f(D')||\tau - f(D)|)\right).
+\end{multline*}
+
+Here we encounter a problem: $|\tau - f(D)|$ is a multiplier to the sensitivity. We use the following trick.
+For now, we consider only Borel sets $S \subseteq [f(D) - \alpha\sigma, f(D) + \alpha\sigma]$.
+For any point $\tau$ in such set $|\tau - f(D)| \leq \alpha\sigma$, therefore 
+$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq \exp(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}).$$
+Denote $\eps := \frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}$. We have
+$$\Pr[\mathcal{A}(D) \in S] \leq e^{\eps} \Pr[\mathcal{A}(D') \in S].$$
+Now consider an arbitrary Borel set $T \in \R$. Let $S = T \cap [f(D) -\alpha\sigma, f(D)\alpha\sigma], S' = T \setminus [f(D) - \alpha\sigma, f(D) + \alpha\sigma]$. Sets $S$ and $S'$ are obviously Borel and $T$ is their disjoint union, therefore:
+\begin{multline*}
+\Pr[\mathcal{A}(D) \in T] = \Pr[\mathcal{A}(D) \in S] + \Pr[\mathcal{A}(D) \in S'] \leq \\
+e^\eps \Pr[\mathcal{A}(D') \in S] + \Pr[\mathcal{A}(D) \in [f(D) -\alpha\sigma, f(D)\alpha\sigma]] \leq e^{\eps} \Pr[\mathcal{A}(D') \in T] + (2 - 2\Phi(\alpha)).
+\end{multline*}
+We set $\delta := 2 - 2\Phi(\alpha)$
+\end{proof}
+\begin{corollary}
+  For $\delta \leq 0.1, \eps \leq 4$ algorithm above provides $(\eps, \delta)$-distributed privacy for $\alpha = \sqrt{2 \ln{\frac{1}{\delta}}}, \sigma = \frac{2\alpha S(f)}{\eps}$.
+\end{corollary}
+\begin{proof}
+First we check the bound on $\delta$. We can bound Gaussian tails from above in following manner:
+$$1 - \Phi(a) \leq \frac{\phi(a)}{a}\left(1 + \frac{1}{a^2}\right).$$
+Substituting:
+$$
+2(1 - \Phi(\alpha)) \leq \frac{2}{\sqrt{2\pi}} \exp\left(-\frac{\alpha^2}{2}\right)\left(\frac{1 + \alpha}{\alpha^3}\right) = \frac{2}{\sqrt{2\pi}} \exp\left(-\ln\frac{1}{\delta}\right)\left(\frac{1 + \alpha}{\alpha^3}\right) \leq \frac{2}{\sqrt{2\pi}}\delta \left(\frac{1 + \alpha}{\alpha^3}\right) = *.
+$$
+Notice that as $\pi > 2$, $\frac{2}{\sqrt{2\pi}} < 1$. As $\delta \leq 0.1 < e^{-2}$, $$\alpha = \sqrt{2\ln\frac{1}{\delta}} \geq \sqrt{2\ln e^2} \geq \sqrt{8},$$ 
+$$\frac{1 + \alpha}{\alpha^3} \leq \frac{1 + 2\sqrt{2}}{16\sqrt{2}} \leq 1.$$
+
+Therefore, indeed $2(1 - \Phi(\alpha)) \leq \delta$.
+
+Now consider:
+$$\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma} = \frac{S(f)^2\eps^2}{8\alpha^2S(f)^2} + \frac{\eps \alpha S(f)}{2\alpha S(f)} = \frac{\eps^2}{8\alpha^2} + \frac{\eps}{2} \leq \frac{\eps^2}{64} + \frac{\eps}{2} \leq \eps$$
+\end{proof}
+
+Next let's examine the multivariate case. In the univariate case, we defined a range where the multiplicative bound is valid, and showed that the probability of being outside this range is small for the random variable $\mathcal{A}(D)$. While we could apply the same approach to the multivariate case, it would yield poor results due to the Curse of Dimensionality. Specifically, we would need to consider the box $f(D) + [-\alpha\sigma, \alpha\sigma]^m$ for the multiplicative bound to work for all coordinates. Applying a union bound over the probability of being outside this box in each dimension would result in $\delta = 1 - (2\Phi(\alpha) - 1)^m$. This bound approaches 1 exponentially fast with dimension $m$, making it impractical.\\
+
+We take a different approach by modifying our bounds on probability density ratios. This modification allows us to redefine when the multiplicative bound fails in terms of a sum of weighted Gaussian variables. Since such a sum follows a Gaussian distribution, we can apply standard tail bounds to obtain the desired result.
+
+\begin{theorem}
+\label{tm:gaussian}
+Suppose $f: \mathcal{D} \to \R^m$ has L2-sensitivity $S(f)$. Then for arbitrary $\alpha, \sigma > 0$ the following algorithm $\mathcal{A}$ is $\left(\frac{S(f)^2}{\sigma^2} + \frac{\alpha S(f)}{\sigma}, 2 - 2\Phi(\alpha)\right)$-differentially private:
+$$\mathcal{A}(D)_i := f(D)_i + \operatorname{\No}(0, \sigma^2)_i.$$
+\end{theorem}
+\begin{proof}
+First we need a bound on PDFs. As PDFs are independent Gaussians, we can apply bound from Lemma~\ref{lm:gaussian} to each of marginals.
+\begin{align*}
+  \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = &\prod_{i}\frac{\p[\mathcal{A}(D)_i](\tau)}{\p[\mathcal{A}(D')_i](\tau)} = 
+   \\
+   &\prod_{i}\exp\left(\frac{1}{2\sigma^2}(|\tau_i - f(D)_i + f(D)_i - f(D')_i|^2 - |\tau_i - f(D)_i|^2)\right) = \\
+   &\prod_{i}\exp\left(\frac{1}{2\sigma^2}(|f(D)_i - f(D')_i|^2 + 2(\tau_i - f(D)_i)(f(D)_i - f(D')_i))\right) = \\
+   &\exp\left(\frac{1}{2\sigma^2}\left(\sum_{i}|f(D)_i - f(D')_i|^2 + 2\sum_{i}(\tau_i - f(D)_i)(f(D)_i - f(D')_i)\right)\right) = \\
+   &\exp\left(\frac{1}{2\sigma^2}(||f(D) - f(D')||_2^2 + 2\langle\tau - f(D), f(D) - f(D')\rangle)\right) \leq \\
+   &\exp\left(\frac{1}{2\sigma^2}(||f(D) - f(D')||_2^2 + 2|\langle\tau - f(D), f(D) - f(D')\rangle|)\right).
+\end{align*}
+
+Denote $\Delta = f(D) - f(D')$. Denote $C = \{\tau \in \R^m: |\langle \tau - f(D), \Delta\rangle| \leq \alpha\sigma S(f)\}$.
+Now as in Lemma~\ref{lm:gaussian} we will start just with the Borel sets $S \subseteq C$. For any point $\tau$ in such set $S$:
+$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq \exp(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}).$$
+Denote $\eps := \exp(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma})$.
+
+Next we have to bound probability of event $|\langle \mathcal{A}(D) - f(D), \Delta\rangle| > \alpha\sigma S(f)$.
+Random variable $\mathcal{A}(D) - f(D)$ has multivariate gaussian distribution $\No(0, \sigma^2\operatorname{I}_m)$ by definition, therefore $\langle \mathcal{A}(D) - f(D), \Delta\rangle \sim \No(0, \sigma^2\Delta^t\operatorname{I_n}\Delta) = \No(0, \sigma^2S(f)^2)$.
+
+Therefore $\Pr[|\langle \mathcal{A}(D) - f(D), \Delta\rangle| > \alpha\sigma S(f)] \leq 2 - 2\Phi(\alpha)$. Denote $\delta = 2 - 2\Phi(\alpha)$. 
+
+We finish the proof for arbitrary set $T$ by splitting it into disjoin union $T = S \sqcup S'$, $S \subseteq C, s' \subseteq \overline{C}$ and using union bound:
+\begin{multline*}
+  \Pr[\mathcal{A}(D) \in T] = \Pr[\mathcal{A}(D) \in S] + \Pr[\mathcal{A}(D) \in S'] \leq \\
+  e^\eps\Pr[\mathcal{A}(D') \in S] + \Pr[\mathcal{A}(D') \in \overline{C}] \leq \eps^e \Pr[\mathcal{A}(D') \in T] + \delta
+\end{multline*}
+\end{proof}
+
+\bibliographystyle{plainurl}
+\bibliography{bibl}
+\end{document}

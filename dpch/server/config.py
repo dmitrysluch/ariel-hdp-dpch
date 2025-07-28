@@ -1,8 +1,7 @@
-from pydantic import BaseModel, Field
+from typing import Any, Optional
+
 import yaml
-from functools import lru_cache
-from typing import Optional
-from dpch.common.column import Column
+from pydantic import BaseModel, Field
 
 
 class ClickHouseConfig(BaseModel):
@@ -13,13 +12,28 @@ class ClickHouseConfig(BaseModel):
     database: Optional[str] = Field(default=None)
 
 
+class SchemaConfig(BaseModel):
+    provider: str
+    kwargs: Any
+
+
+class AuthConfig(BaseModel):
+    provider: str
+    kwargs: Any
+
+
+class ExecutorConfig(BaseModel):
+    provider: str
+    kwargs: Any
+
+
 class AppConfig(BaseModel):
-    clickhouse: ClickHouseConfig
-    columns_schema: dict[str, list[Column]]
+    ch_schema: SchemaConfig = Field(alias="schema")  # schema is inbuilt pydantic field.
+    auth: AuthConfig
+    executor: ExecutorConfig
     debug: bool = Field(default=False)
 
 
-@lru_cache
 def load_config(path: str = "/etc/dpch/config.yaml") -> AppConfig:
     with open(path, "r") as f:
         data = yaml.safe_load(f)

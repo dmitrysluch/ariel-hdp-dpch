@@ -1,0 +1,9 @@
+\begin{thebibliography}{1}
+
+\bibitem{dwork}
+Cynthia Dwork, Frank McSherry, Kobbi Nissim, and Adam Smith.
+\newblock Calibrating noise to sensitivity in private data analysis.
+\newblock In Shai Halevi and Tal Rabin, editors, {\em Theory of Cryptography},
+  pages 265--284, Berlin, Heidelberg, 2006. Springer Berlin Heidelberg.
+
+\end{thebibliography}

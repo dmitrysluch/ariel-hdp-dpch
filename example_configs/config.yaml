@@ -1,15 +1,19 @@
-clickhouse:
-  host: clickhouse
-  port: 8123
-  user: default
-  password: "s3cur3"
-  database: "default"
-  table: "analytics_data"
+schema:
+  provider: fs
+  file: /etc/dpch/schema.json
+
+auth:
+  provider: mock
+  clickhouse: &ch
+    host: clickhouse
+    port: 8123
+    user: default
+    password: "s3cur3"
+    database: "default"
+  secret_key: "a-super-secret-key"
+
+executor:
+  provider: dummy_clickhouse
+  clickhouse: *ch
 
 debug: true
-
-columns_schema:
-  analytics_data:
-    - {"tp": "column", "name": "value1", "min_val": 0, "max_val": 12, "size": 5}
-    - {"tp": "column", "name": "value2", "min_val": 0, "max_val": 25, "size": 5}
-    - {"tp": "column", "name": "value3", "min_val": 4, "max_val": 6, "size": 5}
