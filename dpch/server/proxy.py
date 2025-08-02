@@ -1,21 +1,17 @@
-import json
 import traceback
 from contextlib import asynccontextmanager
-from enum import IntEnum
-from io import BytesIO
-from typing import Literal
 
-import numpy as np
-import uttlv
-from fastapi import Depends, FastAPI, HTTPException, Response
-from numpydantic import NDArray, Shape
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from dpch.common.api import (
+    DebugQueryResponse,
+    QueryRequest,
+    RunQueryResponse,
+)
 from dpch.common.noise import NotEnoughPrivacyBudget, create_noise_from_query
 from dpch.common.queries.interface import DPValueError
-from dpch.common.queries.queries import OneOfQueries
 from dpch.common.schema import Schema, SchemaDataset
-from dpch.common.session import Session
 from dpch.server.auth.factory import get_auth_http_handler
 from dpch.server.auth.interface import (
     AuthError,
@@ -29,8 +25,8 @@ from dpch.server.dependencies import (
     get_schema_provider,
     get_session,
     get_session_transaction_handler,
-    load_config,
     get_use_tlv,
+    load_config,
 )
 from dpch.server.executors.interface import ExecutorMixin, ExecutorValueError
 
@@ -48,85 +44,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title="DPCH Proxy")
-
-
-class TLVTag(IntEnum):
-    """Binary tags for TLV encoding"""
-    TP = 1
-    RESULT = 2
-    NEW_SESSION = 3
-    RAW_RESULT = 4
-    SENSITIVITY = 5
-    EXECUTOR_INFO = 6
-
-
-class QueryRequest(BaseModel):
-    query: OneOfQueries = Field(discriminator="tp")
-
-
-class TLVResponse(Response):
-    """Custom response class for TLV serialization"""
-
-    media_type = "application/x-tlv"
-
-
-def serialize_numpy_to_bytes(arr: np.ndarray) -> bytes:
-    """Serialize numpy array to bytes using np.save and BytesIO"""
-    buffer = BytesIO()
-    np.save(buffer, arr)
-    return buffer.getvalue()
-
-
-def deserialize_numpy_from_bytes(data: bytes) -> np.ndarray:
-    """Deserialize numpy array from bytes using np.load and BytesIO"""
-    buffer = BytesIO(data)
-    return np.load(buffer, allow_pickle=False)
-
-
-# Please add pydantic custom serializer for which dumps numpy arrays by first converting them to lists to RunQueryResponse and DebugQueryResponse
-class RunQueryResponse(BaseModel):
-    tp: Literal["RunQueryResponse"] = "RunQueryResponse"
-    result: NDArray[Shape["*, *"], np.float64]  # noqa: F722
-    new_session: Session
-
-    def create_tlv_response(self) -> TLVResponse:
-        """Create TLV response from this response object"""
-        tlv = uttlv.TLV()
-        
-        # Serialize numpy arrays as binary
-        tlv[TLVTag.RESULT] = serialize_numpy_to_bytes(self.result)
-        
-        # Serialize other fields as JSON
-        tlv[TLVTag.TP] = self.tp.encode()
-        tlv[TLVTag.NEW_SESSION] = self.new_session.model_dump_json().encode()
-        
-        tlv_bytes = tlv.to_byte_array()
-        return TLVResponse(content=tlv_bytes)
-
-
-# Please make debug query response based on run query response but also containing data without noise, sensitivity, session, and result without noise
-class DebugQueryResponse(RunQueryResponse):
-    tp: Literal["DebugQueryResponse"] = "DebugQueryResponse"
-    raw_result: NDArray[Shape["*, *"], np.float64]  # noqa: F722
-    sensitivity: dict
-    executor_info: dict
-
-    def create_tlv_response(self) -> TLVResponse:
-        """Create TLV response from this response object"""
-        tlv = uttlv.TLV()
-        
-        # Serialize numpy arrays as binary
-        tlv[TLVTag.RESULT] = serialize_numpy_to_bytes(self.result)
-        tlv[TLVTag.RAW_RESULT] = serialize_numpy_to_bytes(self.raw_result)
-        
-        # Serialize other fields as JSON
-        tlv[TLVTag.TP] = self.tp.encode()
-        tlv[TLVTag.NEW_SESSION] = self.new_session.model_dump_json().encode()
-        tlv[TLVTag.SENSITIVITY] = json.dumps(self.sensitivity).encode()
-        tlv[TLVTag.EXECUTOR_INFO] = json.dumps(self.executor_info).encode()
-        
-        tlv_bytes = tlv.to_byte_array()
-        return TLVResponse(content=tlv_bytes)
 
 
 class SchemaResponse(BaseModel):

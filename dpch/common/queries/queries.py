@@ -375,7 +375,9 @@ class HistogramQuery(DPQueryMixin):
     def validate_against_schema(self, ds):
         self.columns.validate_against_schema(ds)
         if self.columns.n_cols(ds) != 1:
-            raise DPValueError("Histograms are supported only for single columned queries")
+            raise DPValueError(
+                "Histograms are supported only for single columned queries"
+            )
 
 
 OneOfQueries = ColumnsQuery | SumQuery | MeanQuery | HistogramQuery | CovarianceQuery

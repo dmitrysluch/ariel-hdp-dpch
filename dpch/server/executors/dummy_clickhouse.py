@@ -8,9 +8,9 @@ from functools import singledispatch
 from secrets import token_hex
 from typing import Any
 
-from numpydantic import NDArray, Shape
 import numpy as np
 from clickhouse_connect.driver.asyncclient import AsyncClient
+from numpydantic import NDArray, Shape
 
 from dpch.common.queries.interface import QueryProto
 from dpch.common.queries.queries import (
@@ -49,7 +49,7 @@ class DummyClickHouseExecutor(ExecutorMixin):
 
     async def execute(
         self, query: QueryProto, schema: Schema, session: ServerSession
-    ) -> tuple[NDArray[Shape["*, *"], np.float64], Any]: # noqa: F722
+    ) -> tuple[NDArray[Shape["*, *"], np.float64], Any]:  # noqa: F722
         def get_sql_recursive(q: QueryProto) -> SQLQuery:
             processor = processor_factory(q, schema.dataset_from_session(session))
             computed_args = [get_sql_recursive(arg) for arg in q.get_arguments()]
@@ -229,8 +229,7 @@ class HistogramQueryProcessor(SQLQueryMixin):
         min_val = self.query.min_over_columns(self.ds)[0]
         max_val = self.query.max_over_columns(self.ds)[0]
         parameters = col_query.parameters | {
-            p_interval: (max_val - min_val)
-            / self.query.bins,
+            p_interval: (max_val - min_val) / self.query.bins,
             p_min: min_val,
             p_max: max_val,
             p_bins: self.query.bins,
