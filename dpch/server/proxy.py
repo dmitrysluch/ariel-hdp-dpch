@@ -1,6 +1,7 @@
 import json
 import traceback
 from contextlib import asynccontextmanager
+from enum import IntEnum
 from io import BytesIO
 from typing import Literal
 
@@ -49,6 +50,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, title="DPCH Proxy")
 
 
+class TLVTag(IntEnum):
+    """Binary tags for TLV encoding"""
+    TP = 1
+    RESULT = 2
+    NEW_SESSION = 3
+    RAW_RESULT = 4
+    SENSITIVITY = 5
+    EXECUTOR_INFO = 6
+
+
 class QueryRequest(BaseModel):
     query: OneOfQueries = Field(discriminator="tp")
 
@@ -80,16 +91,16 @@ class RunQueryResponse(BaseModel):
 
     def create_tlv_response(self) -> TLVResponse:
         """Create TLV response from this response object"""
-        tlv_data = {}
-
+        tlv = uttlv.TLV()
+        
         # Serialize numpy arrays as binary
-        tlv_data["result"] = serialize_numpy_to_bytes(self.result)
-
+        tlv[TLVTag.RESULT] = serialize_numpy_to_bytes(self.result)
+        
         # Serialize other fields as JSON
-        tlv_data["tp"] = self.tp.encode()
-        tlv_data["new_session"] = self.new_session.model_dump_json().encode()
-
-        tlv_bytes = uttlv.pack(tlv_data)
+        tlv[TLVTag.TP] = self.tp.encode()
+        tlv[TLVTag.NEW_SESSION] = self.new_session.model_dump_json().encode()
+        
+        tlv_bytes = tlv.to_byte_array()
         return TLVResponse(content=tlv_bytes)
 
 
@@ -102,20 +113,19 @@ class DebugQueryResponse(RunQueryResponse):
 
     def create_tlv_response(self) -> TLVResponse:
         """Create TLV response from this response object"""
-        tlv_data = {}
-
+        tlv = uttlv.TLV()
+        
         # Serialize numpy arrays as binary
-        tlv_data["result"] = serialize_numpy_to_bytes(self.result)
-        tlv_data["raw_result"] = serialize_numpy_to_bytes(self.raw_result)
-
+        tlv[TLVTag.RESULT] = serialize_numpy_to_bytes(self.result)
+        tlv[TLVTag.RAW_RESULT] = serialize_numpy_to_bytes(self.raw_result)
+        
         # Serialize other fields as JSON
-        tlv_data["tp"] = self.tp.encode()
-        tlv_data["new_session"] = self.new_session.model_dump_json().encode()
-
-        tlv_data["sensitivity"] = json.dumps(self.sensitivity).encode()
-        tlv_data["executor_info"] = json.dumps(self.executor_info).encode()
-
-        tlv_bytes = uttlv.pack(tlv_data)
+        tlv[TLVTag.TP] = self.tp.encode()
+        tlv[TLVTag.NEW_SESSION] = self.new_session.model_dump_json().encode()
+        tlv[TLVTag.SENSITIVITY] = json.dumps(self.sensitivity).encode()
+        tlv[TLVTag.EXECUTOR_INFO] = json.dumps(self.executor_info).encode()
+        
+        tlv_bytes = tlv.to_byte_array()
         return TLVResponse(content=tlv_bytes)
 
 
