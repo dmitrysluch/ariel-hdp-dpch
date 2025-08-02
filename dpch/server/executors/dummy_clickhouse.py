@@ -4,17 +4,19 @@
 
 import re
 from dataclasses import asdict
+from functools import singledispatch
 from secrets import token_hex
-from typing import Any, Literal
+from typing import Any
 
+from numpydantic import NDArray, Shape
 import numpy as np
 from clickhouse_connect.driver.asyncclient import AsyncClient
 
 from dpch.common.queries.interface import QueryProto
 from dpch.common.queries.queries import (
     ColumnsQuery,
-    Covariance,
-    Histogram,
+    CovarianceQuery,
+    HistogramQuery,
     MeanQuery,
     SumQuery,
 )
@@ -23,60 +25,60 @@ from dpch.server.auth.interface import ServerSession
 from dpch.server.clickhouse import get_clickhouse_client as get_clickhouse_client_impl
 from dpch.server.config import ClickHouseConfig
 from dpch.server.executors.interface import ExecutorMixin, ExecutorValueError
-from dpch.server.executors.registry import QueryProcessorRegistry
 from dpch.server.executors.sql import COLUMN_NAME_REGEX, SQLQuery, SQLQueryMixin
-from dpch.server.utils import once
+from dpch.server.utils import asynconce
 
-reg = QueryProcessorRegistry[SQLQueryMixin]()
+
+@singledispatch
+def processor_factory(query: QueryProto, ds: SchemaDataset) -> SQLQueryMixin:
+    raise ExecutorValueError("Query not supported by Dummy ClickHouse executor")
 
 
 # Please write the evaluate method. It should:
 # 1. Get query arguments which are also queries.
-# 2. Recursively validate, then transform argument queries to sql.
-# 3. Then evaluate runs query against real clickhouse client.
+# 2. Evaluate runs query against real clickhouse client.
 # You have to validate and call get_sql for query arguments recursively,
 # but don't make evaluate recursive rather add separate functions for validating and getting sql which are recursive.
-class DummyClickhouseExecutor(ExecutorMixin):
+class DummyClickHouseExecutor(ExecutorMixin):
     def __init__(self, clickhouse: Any):
         self.clickhouse_config = ClickHouseConfig.model_validate(clickhouse)
 
-    @once
-    def get_clickhouse_client(self) -> AsyncClient:
-        return get_clickhouse_client_impl(self.clickhouse_config)
+    @asynconce
+    async def get_clickhouse_client(self) -> AsyncClient:
+        return await get_clickhouse_client_impl(self.clickhouse_config)
 
-    async def execute(self, query: QueryProto, schema: Schema, session: ServerSession):
+    async def execute(
+        self, query: QueryProto, schema: Schema, session: ServerSession
+    ) -> tuple[NDArray[Shape["*, *"], np.float64], Any]: # noqa: F722
         def get_sql_recursive(q: QueryProto) -> SQLQuery:
-            processor = reg.parse_query_processor(q)
+            processor = processor_factory(q, schema.dataset_from_session(session))
             computed_args = [get_sql_recursive(arg) for arg in q.get_arguments()]
-            return processor.get_sql(q, computed_args)
+            return processor.get_sql(computed_args)
 
         # Then get SQL for query and all arguments recursively
         sql = get_sql_recursive(query)
-        # Execute against ClickHouse client
-        client = self.get_clickhouse_client()
         try:
+            # Execute against ClickHouse client
+            client = await self.get_clickhouse_client()
             result = await client.query(sql.query, parameters=sql.parameters)
-        except Exception:
-            pass
+        except Exception as e:
+            raise ExecutorValueError("Failed executing query against ClickHouse") from e
         data = result.result_rows
-        data = np.array(data)[:, 1:]  # drop id column
+        data = np.array(data)[:, 1:].astype(np.float64)  # drop id column
         return data, {"sql": asdict(sql)}
 
 
-@reg.register_query_processor
 class ColumnsQueryProcessor(SQLQueryMixin):
-    tp: Literal["columns"]
-
     # Please make this query support selection from several columns. Args is not used. Get column names from query, validate them against re, if invalid throw ExecutorError.
     # Then generate names for return values and format sql query.
     # Please generate parameter name for table, use this parameter in query.
     # Set query.dataframe as parameter value
-    def get_sql(self, query: ColumnsQuery, args: list[SQLQuery]) -> SQLQuery:
+    def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
         # Generate return value names for each column
-        rv_names = {col: f"rv_{token_hex(5)}" for col in query.columns}
+        rv_names = {col: f"rv_{token_hex(5)}" for col in self.query.columns}
 
         # Validate column names against regex to prevent SQL injection
-        for column in query.columns:
+        for column in self.query.columns:
             if re.match(COLUMN_NAME_REGEX, column) is None:
                 raise ExecutorValueError(
                     f"Invalid SQL column name: {column}, possible SQL injection attempt"
@@ -91,37 +93,22 @@ class ColumnsQueryProcessor(SQLQueryMixin):
 
         return SQLQuery(
             query=f"SELECT {select_clause} FROM %({table_param})s",
-            parameters={table_param: query.dataframe},
+            parameters={table_param: self.query.dataframe},
             rv_names=list(rv_names.values()),
         )
 
-    def validate_against_schema(
-        self, query: ColumnsQuery, schema: SchemaDataset
-    ) -> bool:
-        if query.dataset != schema.name:
-            return False
-        for df in schema.dataframes:
-            if df == query.dataframe:
-                query_cols = set(query.columns)
-                all_cols = set(col.name for col in df.columns)
-                return len(query_cols & all_cols) == len(query_cols)
-        return False
+
+@processor_factory.register
+def _(query: ColumnsQuery, ds: SchemaDataset) -> ColumnsQueryProcessor:
+    return ColumnsQueryProcessor(query, ds)
 
 
 # Please move query execution logic into dummy_clickhouse file
 # (see how ColumnsQueryProcessor is implemented).
-# For validate_against_schema all queries (except ColumnsQueryProcessor)
-# must always return True.
-# For get_sql move implementation from dpch.common.queries
 
 
-@reg.register_query_processor
 class SumQueryProcessor(SQLQueryMixin):
-    tp: Literal["sum"]
-
-    # Please make the query to support single argument returning several columns.
-    # args[0] rv_names will be names of the columns returned
-    def get_sql(self, query: SumQuery, args: list[SQLQuery]) -> SQLQuery:
+    def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
         inner_sql = args[0]
         rv_names = [f"rv_{token_hex(5)}" for _ in inner_sql.rv_names]
         select_parts = [
@@ -133,16 +120,14 @@ class SumQueryProcessor(SQLQueryMixin):
             query=query_str, parameters=inner_sql.parameters, rv_names=rv_names
         )
 
-    def validate_against_schema(self, query: SumQuery, schema: SchemaDataset) -> bool:
-        return True
+
+@processor_factory.register
+def _(query: SumQuery, ds: SchemaDataset) -> SumQueryProcessor:
+    return SumQueryProcessor(query, ds)
 
 
-@reg.register_query_processor
 class MeanQueryProcessor(SQLQueryMixin):
-    tp: Literal["mean"]
-
-    # Please make query to support argument returning several columns as in sum query above
-    def get_sql(self, query: MeanQuery, args: list[SQLQuery]) -> SQLQuery:
+    def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
         inner_sql = args[0]
         p_size = f"size_{token_hex(5)}"
         rv_names = [f"rv_{token_hex(5)}" for _ in inner_sql.rv_names]
@@ -154,25 +139,21 @@ class MeanQueryProcessor(SQLQueryMixin):
         query_str = f"SELECT {select_clause} FROM ({inner_sql.query})"
         return SQLQuery(
             query=query_str,
-            parameters=inner_sql.parameters | {p_size: query.columns.get_size()},
+            parameters=inner_sql.parameters | {p_size: self.query.columns.len(self.ds)},
             rv_names=rv_names,
         )
 
-    def validate_against_schema(self, query: MeanQuery, schema: SchemaDataset) -> bool:
-        return True
+
+@processor_factory.register
+def _(query: MeanQuery, ds: SchemaDataset) -> MeanQueryProcessor:
+    return MeanQueryProcessor(query, ds)
 
 
-@reg.register_query_processor
 class CovarianceQueryProcessor(SQLQueryMixin):
-    tp: Literal["covariance"]
-
-    # Please make query to support argument returning several columns.
-    # Also please make it possible that query has only column1 set,
-    # in that case self covariance is computed
-    def get_sql(self, query: Covariance, args: list[SQLQuery]) -> SQLQuery:
+    def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
         sql1 = args[0]
         # If column2 is not set, use column1 for self-covariance
-        if query.columns2 is None:
+        if self.query.columns2 is None:
             rv_names = [
                 f"rv_{token_hex(5)}"
                 for _ in range(len(sql1.rv_names) * len(sql1.rv_names))
@@ -219,15 +200,14 @@ class CovarianceQueryProcessor(SQLQueryMixin):
                 rv_names=rv_names,
             )
 
-    def validate_against_schema(self, query: Covariance, schema: SchemaDataset) -> bool:
-        return True
+
+@processor_factory.register
+def _(query: CovarianceQuery, ds: SchemaDataset) -> CovarianceQueryProcessor:
+    return CovarianceQueryProcessor(query, ds)
 
 
-@reg.register_query_processor
 class HistogramQueryProcessor(SQLQueryMixin):
-    tp: Literal["histogram"]
-
-    def get_sql(self, query: Histogram, args: list[SQLQuery]) -> SQLQuery:
+    def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
         col_query = args[0]
         p_bins = f"bins_{token_hex(5)}"
         p_interval = f"interval_{token_hex(5)}"
@@ -246,11 +226,14 @@ class HistogramQueryProcessor(SQLQueryMixin):
         GROUP BY id
         ORDER BY id WITH FILL FROM 0 TO %({p_bins})s
         """
+        min_val = self.query.min_over_columns(self.ds)[0]
+        max_val = self.query.max_over_columns(self.ds)[0]
         parameters = col_query.parameters | {
-            p_interval: (query.columns.max_val - query.columns.min_val) / query.bins,
-            p_min: query.columns.min_val,
-            p_max: query.columns.max_val,
-            p_bins: query.bins,
+            p_interval: (max_val - min_val)
+            / self.query.bins,
+            p_min: min_val,
+            p_max: max_val,
+            p_bins: self.query.bins,
         }
         return SQLQuery(
             query=query_str,
@@ -258,5 +241,7 @@ class HistogramQueryProcessor(SQLQueryMixin):
             rv_names=[rv],
         )
 
-    def validate_against_schema(self, query: Histogram, schema: SchemaDataset) -> bool:
-        return True
+
+@processor_factory.register
+def _(query: HistogramQuery, ds: SchemaDataset) -> HistogramQueryProcessor:
+    return HistogramQueryProcessor(query, ds)

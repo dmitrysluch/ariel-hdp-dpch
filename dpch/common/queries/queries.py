@@ -1,7 +1,7 @@
 from functools import lru_cache
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from dpch.common.queries.interface import (
     BroadcastLipschitzMixin,
@@ -26,17 +26,19 @@ from dpch.common.schema import SchemaColumn, SchemaDataFrame, SchemaDataset
 
 
 # For ColumnsQuery please extract looking up the dataframe in dataset to a new method
-class ColumnsQuery(BaseModel, DPQueryMixin):
+class ColumnsQuery(DPQueryMixin):
     tp: Literal["columns"]
-    columns: list[str]
+    columns: tuple[str, ...]
     dataframe: str
-    dataset: str
+
+    def get_arguments(self) -> list[DPQueryMixin]:
+        return []
 
     @lru_cache
     def _get_dataframe(self, ds: SchemaDataset) -> SchemaDataFrame:
         """Get the dataframe that matches self.dataframe from the dataset."""
         dataframe = next(
-            (df for df in ds.dataframes if df.table == self.dataframe), None
+            (df for df in ds.dataframes if df.name == self.dataframe), None
         )
         if dataframe is None:
             raise DPValueError(f"Dataframe {self.dataframe} not found in dataset")
@@ -59,9 +61,6 @@ class ColumnsQuery(BaseModel, DPQueryMixin):
     @lru_cache
     def max_changed_rows(self, ds) -> int:
         return self._get_dataframe(ds).max_changed_rows
-
-    def get_arguments() -> list[DPQueryMixin]:
-        return []
 
     @lru_cache
     def max_over_columns(self, ds) -> list[float]:
@@ -110,21 +109,22 @@ class ColumnsQuery(BaseModel, DPQueryMixin):
 
     @lru_cache
     def validate_against_schema(self, ds):
-        if self.dataset != ds.name:
-            return False
         dataframe = self._get_dataframe(ds)
         query_cols = set(self.columns)
         df_cols = set(col.name for col in dataframe.columns)
         if len(query_cols & df_cols) != len(query_cols):
-            raise DPValueError("NonExistent columns queried")
+            raise DPValueError("Non existent columns queried")
 
 
 # Please fix SumQuery. The resulting shape is 1 x columns.shape()[1] (as all rows are summed).
 # Max over columns, min_over_columns, max_norm_over_columns change accordingly
 # (that is max and min, are multiplied by size, l1 norm is left unchanged, l2 norm is assigned to l1 norm)
-class SumQuery(BaseModel, BroadcastLipschitzMixin):
+class SumQuery(BroadcastLipschitzMixin):
     tp: Literal["sum"]
     columns: "OneOfQueries" = Field(discriminator="tp")
+
+    def get_arguments(self) -> list[DPQueryMixin]:
+        return [self.columns]
 
     @lru_cache
     def shape(self, ds) -> tuple[int, int]:
@@ -133,10 +133,6 @@ class SumQuery(BaseModel, BroadcastLipschitzMixin):
 
     def max_changed_rows(self, ds) -> int:
         return 1
-
-    @lru_cache
-    def get_arguments(self) -> List[ColumnsQuery]:
-        return [self.columns]
 
     @lru_cache
     def get_lipschitz_parameter(self, ds, norm: str) -> float:
@@ -167,14 +163,20 @@ class SumQuery(BaseModel, BroadcastLipschitzMixin):
         else:
             raise DPValueError(f"Unsupported norm: {norm}")
 
+    def validate_against_schema(self, ds):
+        self.columns.validate_against_schema(ds)
+
 
 # Please fix MeanQuery similarly to sum query.
 # For lipschitz parameter it is 1 / columns/len(ds).
 # For max_over_columns and min_over_columns no multiplication is needed.
 # l1 norm is divided by len, l2 is l1 divided by len
-class MeanQuery(BaseModel, BroadcastLipschitzMixin):
+class MeanQuery(BroadcastLipschitzMixin):
     tp: Literal["mean"]
     columns: "OneOfQueries" = Field(discriminator="tp")
+
+    def get_arguments(self) -> list[DPQueryMixin]:
+        return [self.columns]
 
     @lru_cache
     def shape(self, ds) -> tuple[int, int]:
@@ -211,6 +213,9 @@ class MeanQuery(BaseModel, BroadcastLipschitzMixin):
             return 1.0 / size
         raise DPValueError(f"Unsupported norm: {norm}")
 
+    def validate_against_schema(self, ds):
+        self.columns.validate_against_schema(ds)
+
 
 # Please fix Covariance query.
 # If columns2 is not set, then self-covariance is computed,
@@ -228,10 +233,15 @@ class MeanQuery(BaseModel, BroadcastLipschitzMixin):
 # d1 * m2 + d2 * m1 + d1 * d2 but note that you have to iterate over all pairs of columns
 
 
-class Covariance(BaseModel, DPQueryMixin):
+class CovarianceQuery(DPQueryMixin):
     tp: Literal["covariance"]
     columns1: "OneOfQueries" = Field(discriminator="tp")
     columns2: Optional["OneOfQueries"] = Field(discriminator="tp", default=None)
+
+    def get_arguments(self) -> list[DPQueryMixin]:
+        return (
+            [self.columns1] if self.columns2 is None else [self.columns1, self.columns2]
+        )
 
     def _get_columns2(self):
         """Get columns2, using columns1 for self-covariance if columns2 is None."""
@@ -324,17 +334,28 @@ class Covariance(BaseModel, DPQueryMixin):
                 result.append(d1[i] * m2[j] + d2[j] * m1[i] + d1[i] * d2[j])
         return result
 
+    def validate_against_schema(self, ds):
+        self.columns1.validate_against_schema(ds)
+        if self.columns2 is not None:
+            self.columns2.validate_against_schema(ds)
 
-class Histogram(BaseModel, DPQueryMixin):
+
+class HistogramQuery(DPQueryMixin):
     tp: Literal["histogram"]
     columns: ColumnsQuery = Field(discriminator="tp")
     bins: int
 
+    def get_arguments(self) -> list[DPQueryMixin]:
+        return [self.columns]
+
     def shape(self, ds) -> tuple[int, int]:
         return (self.bins, 1)
 
+    def max_changed_rows(self, ds) -> int:
+        return [self.columns.max_changed_rows(ds) * 2]
+
     def max_over_columns(self, ds):
-        return [self.columns.len()]
+        return [self.columns.len(ds)]
 
     def min_over_columns(self, ds):
         return [0]
@@ -343,13 +364,18 @@ class Histogram(BaseModel, DPQueryMixin):
         return [self.columns.len()]
 
     def sensitivity_over_columns(self, ds, norm: str) -> list[float]:
-        max_changed = self.columns.max_changed_rows(ds, norm)
+        max_changed = self.columns.max_changed_rows(ds)
         if norm == "l1":
-            return [2 * ch for ch in max_changed]
+            return [2 * max_changed]
         elif norm == "l2":
-            return [(2 * ch) ** 0.5 for ch in max_changed]
+            return [(2 * max_changed) ** 0.5]
         else:
             raise DPValueError(f"Unsupported norm: {norm}")
 
+    def validate_against_schema(self, ds):
+        self.columns.validate_against_schema(ds)
+        if self.columns.n_cols(ds) != 1:
+            raise DPValueError("Histograms are supported only for single columned queries")
 
-OneOfQueries = ColumnsQuery | SumQuery | MeanQuery | Histogram | Covariance
+
+OneOfQueries = ColumnsQuery | SumQuery | MeanQuery | HistogramQuery | CovarianceQuery

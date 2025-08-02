@@ -4,8 +4,8 @@ from clickhouse_connect.driver.asyncclient import AsyncClient
 from dpch.server.config import ClickHouseConfig
 
 
-def get_clickhouse_client(config: ClickHouseConfig) -> AsyncClient:
-    return get_async_client(
+async def get_clickhouse_client(config: ClickHouseConfig) -> AsyncClient:
+    return await get_async_client(
         host=config.host,
         port=config.port,
         username=config.user,

@@ -27,11 +27,9 @@ def add_schema_column(name):
     # to provide reasonable but not tight bounds here.
     columns.append(
         SchemaColumn(
-            tp="column",
             name=name,
             min_val=df[name].min(),
             max_val=df[name].max(),
-            size=df.shape[0],
         )
     )
 
@@ -43,7 +41,7 @@ add_schema_column("tabweight")
 regstate_dummies = pd.get_dummies(df["regstate"], prefix="regstate").astype("int")
 columns.extend(
     [
-        SchemaColumn(tp="column", name=x, min_val=0, max_val=1, size=df.shape[0])
+        SchemaColumn(name=x, min_val=0, max_val=1, size=df.shape[0])
         for x in regstate_dummies.columns
     ]
 )
@@ -171,7 +169,14 @@ ds1 = SchemaDataset(
         max_eps=0.5,
         max_delta=1e-5,
     ),
-    dataframes=[SchemaDataFrame(name="vius1", columns=columns, max_changed_rows=1)],
+    dataframes=[
+        SchemaDataFrame(
+            name="vius1",
+            columns=tuple(columns),
+            n_rows=df.shape[0],
+            max_changed_rows=1,
+        )
+    ],
 )
 
 ds2 = SchemaDataset(
@@ -180,7 +185,14 @@ ds2 = SchemaDataset(
         max_eps=0.5,
         max_delta=1e-5,
     ),
-    dataframes=[SchemaDataFrame(name="vius2", columns=columns, max_changed_rows=1)],
+    dataframes=[
+        SchemaDataFrame(
+            name="vius2",
+            columns=tuple(columns),
+            n_rows=df.shape[0],
+            max_changed_rows=1,
+        )
+    ],
 )
 
 schema = Schema(
@@ -190,7 +202,7 @@ schema = Schema(
             name="analysts_can_read_vius1", dataset="vius1", role="data_analyst"
         ),
         DatasetRoleBinding(
-            name="analysts_can_read_vius2", dataset="vius1", role="data_analyst"
+            name="analysts_can_read_vius2", dataset="vius2", role="data_analyst"
         ),
     ],
 )

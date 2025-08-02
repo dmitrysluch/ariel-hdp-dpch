@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
+from dpch.common.queries.interface import QueryProto
+from dpch.common.schema import SchemaDataset
+
 
 # Make an SQLQuery dataclass which consists of a query as str and list of parameters as dict
 @dataclass
@@ -13,8 +16,12 @@ class SQLQuery:
 
 
 class SQLQueryMixin(ABC):
+    def __init__(self, query: QueryProto, ds: SchemaDataset):
+        self.query = query
+        self.ds = ds
+
     @abstractmethod
-    def get_sql(self, query: Any, args: list[Any]) -> SQLQuery:
+    def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
         """
         Returns SQL query computing this column
 

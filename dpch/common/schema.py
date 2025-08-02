@@ -29,15 +29,21 @@ class SchemaColumn(BaseModel):
     max_l1_norm: float | None = Field(default=None)
     max_l2_norm: float | None = Field(default=None)
 
+    class Config:
+        frozen = True
+
 
 # Represents a data table with its columns and privacy settings.
 class SchemaDataFrame(BaseModel):
     name: str
-    columns: list[SchemaColumn]
+    columns: tuple[SchemaColumn, ...]
     n_rows: int
     # The maximum amount of rows, changes in which must be invisible to the adversary.
     # Set to 0 if the dataframe contains no secret rows.
     max_changed_rows: int
+
+    class Config:
+        frozen = True
 
 
 # Defines differential privacy parameters (epsilon, delta).
@@ -45,12 +51,18 @@ class DPConstraints(BaseModel):
     max_eps: float
     max_delta: float
 
+    class Config:
+        frozen = True
+
 
 # Groups related dataframes under common privacy constraints.
 class SchemaDataset(BaseModel):
     name: str
     constraints: DPConstraints
-    dataframes: list[SchemaDataFrame]
+    dataframes: tuple[SchemaDataFrame, ...]
+
+    class Config:
+        frozen = True
 
 
 # Maps user roles to dataset access permissions.
@@ -61,14 +73,20 @@ class DatasetRoleBinding(BaseModel):
     dataset: str
     role: str
 
+    class Config:
+        frozen = True
+
 
 # Top-level container for datasets and access control.
 class Schema(BaseModel):
-    datasets: list[SchemaDataset]
-    role_bindings: list[DatasetRoleBinding]
+    datasets: tuple[SchemaDataset, ...]
+    role_bindings: tuple[DatasetRoleBinding, ...]
 
     def dataset_from_session(self, s: Session):
         ds = next((ds for ds in self.datasets if s.dataset == ds.name), None)
         if ds is None:
             raise ValueError("Session dataset not present in schema")
         return ds
+
+    class Config:
+        frozen = True

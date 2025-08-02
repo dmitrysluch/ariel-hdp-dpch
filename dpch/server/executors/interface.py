@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
+from numpydantic import NDArray, Shape
 
 from dpch.common.queries.interface import QueryProto
 from dpch.common.schema import Schema
@@ -23,5 +24,5 @@ class ExecutorMixin(ABC):
     @abstractmethod
     async def execute(
         self, query: QueryProto, schema: Schema, session: ServerSession
-    ) -> tuple[np.ndarray, Any]:
+    ) -> tuple[NDArray[Shape["*, *"], np.float64], Any]:  # noqa: F722
         pass

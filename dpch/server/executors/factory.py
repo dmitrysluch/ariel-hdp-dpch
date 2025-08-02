@@ -2,14 +2,14 @@ import importlib
 import re
 
 from dpch.server.config import ExecutorConfig
-from dpch.server.executors.dummy_clickhouse import DummyClickhouseExecutor
+from dpch.server.executors.dummy_clickhouse import DummyClickHouseExecutor
 from dpch.server.executors.interface import ExecutorMixin
 from dpch.server.utils import IMPORT_RE
 
 
 def get_executor(conf: ExecutorConfig) -> ExecutorMixin:
     if conf.provider == "dummy_clickhouse":
-        return DummyClickhouseExecutor(**conf.kwargs)
+        return DummyClickHouseExecutor(**conf.kwargs)
     elif re.match(IMPORT_RE, conf.provider) is not None:
         *import_path, provider = conf.provider.split(":")
         try:

@@ -21,7 +21,9 @@ def get_auth_http_handler(
             schema_provider=schema_provider, **conf.kwargs
         )
     elif re.match(IMPORT_RE, conf.provider) is not None:
-        *import_path, http_handler, provider = conf.provider.split(":")
+        *import_path, _, http_handler = conf.provider.split(":")
+        if http_handler == "":
+            return None
         try:
             module = importlib.import_module(import_path)
             http_handler = getattr(module, http_handler)
@@ -36,7 +38,7 @@ def get_auth_provider(conf: AuthConfig) -> AuthProviderMixin:
     if conf.provider == "mock":
         return MockAuthSessionProvider(**conf.kwargs)
     elif re.match(IMPORT_RE, conf.provider) is not None:
-        *import_path, http_handler, provider = conf.provider.split(":")
+        *import_path, provider, _ = conf.provider.split(":")
         try:
             module = importlib.import_module(import_path)
             provider = getattr(module, provider)

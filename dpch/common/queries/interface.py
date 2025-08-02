@@ -3,6 +3,7 @@ from functools import lru_cache
 from typing import Protocol
 
 import numpy as np
+from pydantic import BaseModel
 
 from dpch.common.schema import SchemaDataset
 
@@ -17,16 +18,16 @@ class DPValueError(ValueError):
     pass
 
 
-class DPQueryMixin(ABC):
+class DPQueryMixin(BaseModel, ABC):
     @abstractmethod
     def shape(self, ds: SchemaDataset) -> tuple[int, int]:
         pass
 
     def len(self, ds: SchemaDataset) -> int:
-        return self.get_shape(ds)[0]
+        return self.shape(ds)[0]
 
     def n_cols(self, ds: SchemaDataset) -> int:
-        return self.get_shape(ds)[1]
+        return self.shape(ds)[1]
 
     @abstractmethod
     def max_changed_rows(self, ds: SchemaDataset) -> int:
@@ -120,6 +121,9 @@ class DPQueryMixin(ABC):
             schema: schema of dataset to be queried
         """
         pass
+
+    class Config:
+        frozen = True
 
 
 # Please fix the following mixin. It must implement compute_sensitivity_over_columns method.

@@ -1,9 +1,9 @@
 import importlib
 import re
 
-from dpch.common.schema import SchemaProviderMixin
 from dpch.server.config import SchemaConfig
 from dpch.server.schema.fs_schema_provider import FSSchemaProvider
+from dpch.server.schema.interface import SchemaProviderMixin
 from dpch.server.utils import IMPORT_RE
 
 
