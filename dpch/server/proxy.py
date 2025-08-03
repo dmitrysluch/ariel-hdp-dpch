@@ -2,16 +2,16 @@ import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel, Field
 
 from dpch.common.api import (
     DebugQueryResponse,
     QueryRequest,
     RunQueryResponse,
+    SchemaResponse,
 )
 from dpch.common.noise import NotEnoughPrivacyBudget, create_noise_from_query
 from dpch.common.queries.interface import DPValueError
-from dpch.common.schema import Schema, SchemaDataset
+from dpch.common.schema import Schema
 from dpch.server.auth.factory import get_auth_http_handler
 from dpch.server.auth.interface import (
     AuthError,
@@ -44,10 +44,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title="DPCH Proxy")
-
-
-class SchemaResponse(BaseModel):
-    ch_schema: SchemaDataset = Field(alias="schema")
 
 
 # Please implement get_schema method. Method just loads config and returns response containing config.schema

@@ -28,7 +28,7 @@ from dpch.common.schema import SchemaColumn, SchemaDataFrame, SchemaDataset
 # For ColumnsQuery please extract looking up the dataframe in dataset to a new method
 class ColumnsQuery(DPQueryMixin):
     tp: Literal["columns"]
-    columns: tuple[str, ...]
+    columns: tuple[str, ...] | str
     dataframe: str
 
     def get_arguments(self) -> list[DPQueryMixin]:
@@ -55,8 +55,7 @@ class ColumnsQuery(DPQueryMixin):
     @lru_cache
     def shape(self, ds) -> tuple[int, int]:
         dataframe = self._get_dataframe(ds)
-
-        return (dataframe.n_rows, len(self.columns))
+        return (dataframe.n_rows, len(self.parse_columns(ds)))
 
     @lru_cache
     def max_changed_rows(self, ds) -> int:
@@ -66,25 +65,27 @@ class ColumnsQuery(DPQueryMixin):
     def max_over_columns(self, ds) -> list[float]:
         dataframe = self._get_dataframe(ds)
         return [
-            self._get_column(dataframe, col_name).max_val for col_name in self.columns
+            self._get_column(dataframe, col_name).max_val
+            for col_name in self.parse_columns(ds)
         ]
 
     @lru_cache
     def min_over_columns(self, ds) -> list[float]:
         dataframe = self._get_dataframe(ds)
         return [
-            self._get_column(dataframe, col_name).min_val for col_name in self.columns
+            self._get_column(dataframe, col_name).min_val
+            for col_name in self.parse_columns(ds)
         ]
 
     @lru_cache
     def max_norm_over_columns(self, ds, norm: str) -> list[float]:
         dataframe = self._get_dataframe(ds)
-        # Use super() to get computed_norm
         computed_norm = super().max_norm_over_columns(ds, norm)
+        col_names = self.parse_columns(ds)
         result = []
-        for col_name in self.columns:
+        for idx, col_name in enumerate(col_names):
             col = self._get_column(dataframe, col_name)
-            computed_col_norm = computed_norm[self.columns.index(col_name)]
+            computed_col_norm = computed_norm[idx]
             if norm == "l1" and col.max_l1_norm is not None:
                 result.append(min(col.max_l1_norm, computed_col_norm))
             elif norm == "l2" and col.max_l2_norm is not None:
@@ -104,8 +105,49 @@ class ColumnsQuery(DPQueryMixin):
                 - self._get_column(dataframe, col_name).min_val
             )
             * dataframe.max_changed_rows
-            for col_name in self.columns
+            for col_name in self.parse_columns(ds)
         ]
+
+    @lru_cache
+    def parse_columns(self, ds: SchemaDataset) -> tuple[str, ...]:
+        """
+        Returns the tuple of column names selected by self.columns, supporting:
+        - tuple/list of column names
+        - single column name (str)
+        - slice expression as a string (e.g. 'col1:col5' or 'col1:col5:2')
+        """
+        dataframe = self._get_dataframe(ds)
+        cols = self.columns
+        if isinstance(cols, str):
+            if ":" in cols:
+                # Support slice with optional step, e.g. 'col1:col5:2'
+                parts = cols.split(":")
+                if len(parts) == 2:
+                    start, end = parts
+                    step = None
+                elif len(parts) == 3:
+                    start, end, step = parts
+                    step = int(step) if step else None
+                else:
+                    raise DPValueError(f"Invalid slice: {cols}")
+                all_col_names = [col.name for col in dataframe.columns]
+                try:
+                    start_idx = all_col_names.index(start) if start else 0
+                    end_idx = (
+                        all_col_names.index(end) + 1 if end else len(all_col_names)
+                    )
+                except ValueError:
+                    raise DPValueError(f"Invalid slice: {cols}")
+                selected = all_col_names[start_idx:end_idx]
+                if step is not None:
+                    selected = selected[::step]
+                return tuple(selected)
+            else:
+                return (cols,)
+        elif isinstance(cols, (list, tuple)):
+            return tuple(cols)
+        else:
+            raise DPValueError("Unsupported columns selector type")
 
     @lru_cache
     def validate_against_schema(self, ds):

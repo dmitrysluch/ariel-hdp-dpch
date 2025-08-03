@@ -74,11 +74,12 @@ class ColumnsQueryProcessor(SQLQueryMixin):
     # Please generate parameter name for table, use this parameter in query.
     # Set query.dataframe as parameter value
     def get_sql(self, args: list[SQLQuery]) -> SQLQuery:
+        query_columns = self.query.parse_columns(self.ds)
         # Generate return value names for each column
-        rv_names = {col: f"rv_{token_hex(5)}" for col in self.query.columns}
+        rv_names = {col: f"rv_{token_hex(5)}" for col in query_columns}
 
         # Validate column names against regex to prevent SQL injection
-        for column in self.query.columns:
+        for column in query_columns:
             if re.match(COLUMN_NAME_REGEX, column) is None:
                 raise ExecutorValueError(
                     f"Invalid SQL column name: {column}, possible SQL injection attempt"

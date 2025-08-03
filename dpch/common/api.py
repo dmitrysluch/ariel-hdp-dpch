@@ -1,7 +1,7 @@
 import json
 from enum import IntEnum
 from io import BytesIO
-from typing import Literal, Union
+from typing import Literal
 
 import numpy as np
 import uttlv
@@ -10,6 +10,7 @@ from numpydantic import NDArray, Shape
 from pydantic import BaseModel, Field
 
 from dpch.common.queries.queries import OneOfQueries
+from dpch.common.schema import SchemaDataset
 from dpch.common.session import Session
 
 
@@ -139,3 +140,7 @@ def response_from_tlv_bytes(data: bytes) -> RunQueryResponse | DebugQueryRespons
         return DebugQueryResponse.from_tlv_bytes(tlv)
     else:
         raise ValueError(f"Unknown response type: {response_type}")
+
+
+class SchemaResponse(BaseModel):
+    ch_schema: SchemaDataset = Field(alias="schema")
