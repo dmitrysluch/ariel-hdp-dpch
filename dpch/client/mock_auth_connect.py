@@ -13,7 +13,7 @@ def connect(
     eps_used: float,
     delta_used: float,
     noise_type: str,
-    cache_ttl_seconds: int,
+    cache_ttl_seconds: int = 60,
 ) -> Dataset:
     """
     Create a MockAuthClient, authenticate it, and return the corresponding Dataset.
@@ -28,7 +28,6 @@ def connect(
         eps_used=eps_used,
         delta_used=delta_used,
         noise_type=noise_type,
-        cache_ttl_seconds=cache_ttl_seconds,
     )
     client.connect(session)
-    return Dataset(client, dataset)
+    return Dataset(client, dataset, cache_ttl_seconds=cache_ttl_seconds)

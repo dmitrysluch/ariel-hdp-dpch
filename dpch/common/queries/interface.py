@@ -30,7 +30,7 @@ class DPQueryMixin(BaseModel, ABC):
         return self.shape(ds)[1]
 
     @abstractmethod
-    def max_changed_rows(self, ds: SchemaDataset) -> int:
+    def max_changed_rows(self, ds: SchemaDataset) -> list[int]:
         pass
 
     @abstractmethod
@@ -119,6 +119,21 @@ class DPQueryMixin(BaseModel, ABC):
 
         Args:
             schema: schema of dataset to be queried
+        """
+        pass
+
+    # Lets make repr_columns abstract method for DPQueryMixin.
+    # It takes SchemaDataset ds and returns a list of strings
+    @abstractmethod
+    def repr_columns(self, ds: SchemaDataset) -> list[str]:
+        """
+        Returns short representation for each of resulting columns
+
+        Args:
+            ds: schema dataset to query column information from
+
+        Returns:
+            list[str]: List of column names
         """
         pass
 

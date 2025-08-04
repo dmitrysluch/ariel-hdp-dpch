@@ -28,7 +28,10 @@ class Client(ClientMixin):
         resp = self.session.post(
             f"{self.base_url}/query", data=request.model_dump_json(), headers=headers
         )
-        resp.raise_for_status()
+        if not resp.ok:
+            raise requests.HTTPError(
+                f"HTTP {resp.status_code}: {resp.text}", response=resp
+            )
         if self.use_tlv:
             return response_from_tlv_bytes(resp.content)
         else:
@@ -41,5 +44,8 @@ class Client(ClientMixin):
     def schema(self) -> SchemaResponse:
         headers = {"Accept": "application/json"}
         resp = self.session.get(f"{self.base_url}/schema", headers=headers)
-        resp.raise_for_status()
+        if not resp.ok:
+            raise requests.HTTPError(
+                f"HTTP {resp.status_code}: {resp.text}", response=resp
+            )
         return SchemaResponse.model_validate(resp.json())

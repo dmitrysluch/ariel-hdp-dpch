@@ -162,11 +162,11 @@ async def handle_query(
             },
             new_session=new_sess,
             executor_info=debug_info,
+            column_names=query.repr_columns(ds),
         )
     else:
         response = RunQueryResponse(
-            result=noisy_data,
-            new_session=new_sess,
+            result=noisy_data, new_session=new_sess, column_names=query.repr_columns(ds)
         )
 
     if use_tlv:

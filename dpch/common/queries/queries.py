@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal, Optional
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from dpch.common.queries.interface import (
     BroadcastLipschitzMixin,
@@ -26,9 +26,38 @@ from dpch.common.schema import SchemaColumn, SchemaDataFrame, SchemaDataset
 
 
 # For ColumnsQuery please extract looking up the dataframe in dataset to a new method
+
+
+# Please implement repr_columns method for each of existing queries.
+#  For ColumnsQuery it is just parsed column names.
+# For other queries add a short function name for each column,
+# e.g. 'cov(col1, col2)' for covariance and so on
+
+
+class ListSelector(BaseModel):
+    tp: Literal["list"]
+    items: tuple[str, ...]
+
+    class Config:
+        frozen = True
+
+
+class SliceSelector(BaseModel):
+    tp: Literal["slice"]
+    start: str | int | None = None
+    stop: str | int | None = None
+    step: int | None = None
+
+    class Config:
+        frozen = True
+
+
+ColumnSelector = ListSelector | SliceSelector
+
+
 class ColumnsQuery(DPQueryMixin):
     tp: Literal["columns"]
-    columns: tuple[str, ...] | str
+    columns: ColumnSelector = Field(discriminator="tp")
     dataframe: str
 
     def get_arguments(self) -> list[DPQueryMixin]:
@@ -59,7 +88,7 @@ class ColumnsQuery(DPQueryMixin):
 
     @lru_cache
     def max_changed_rows(self, ds) -> int:
-        return self._get_dataframe(ds).max_changed_rows
+        return [self._get_dataframe(ds).max_changed_rows] * self.n_cols(ds)
 
     @lru_cache
     def max_over_columns(self, ds) -> list[float]:
@@ -111,51 +140,67 @@ class ColumnsQuery(DPQueryMixin):
     @lru_cache
     def parse_columns(self, ds: SchemaDataset) -> tuple[str, ...]:
         """
-        Returns the tuple of column names selected by self.columns, supporting:
-        - tuple/list of column names
-        - single column name (str)
-        - slice expression as a string (e.g. 'col1:col5' or 'col1:col5:2')
+        Returns the tuple of column names selected by self.columns selector.
         """
         dataframe = self._get_dataframe(ds)
-        cols = self.columns
-        if isinstance(cols, str):
-            if ":" in cols:
-                # Support slice with optional step, e.g. 'col1:col5:2'
-                parts = cols.split(":")
-                if len(parts) == 2:
-                    start, end = parts
-                    step = None
-                elif len(parts) == 3:
-                    start, end, step = parts
-                    step = int(step) if step else None
+
+        if isinstance(self.columns, ListSelector):
+            return self.columns.items
+        elif isinstance(self.columns, SliceSelector):
+            all_col_names = [col.name for col in dataframe.columns]
+
+            # Handle string indices by converting to integer indices
+            start_idx = 0
+            end_idx = len(all_col_names)
+            step = self.columns.step
+
+            if self.columns.start is not None:
+                if isinstance(self.columns.start, str):
+                    try:
+                        start_idx = all_col_names.index(self.columns.start)
+                    except ValueError:
+                        raise DPValueError(
+                            f"Start column '{self.columns.start}' not found"
+                        )
                 else:
-                    raise DPValueError(f"Invalid slice: {cols}")
-                all_col_names = [col.name for col in dataframe.columns]
+                    start_idx = self.columns.start
+
+            if self.columns.stop is not None:
+                if isinstance(self.columns.stop, str):
+                    try:
+                        end_idx = all_col_names.index(self.columns.stop) + 1
+                    except ValueError:
+                        raise DPValueError(
+                            f"Stop column '{self.columns.stop}' not found"
+                        )
+                else:
+                    end_idx = self.columns.stop
+
+            # Convert step to int if it's a string representation
+            if step is not None and isinstance(step, str):
                 try:
-                    start_idx = all_col_names.index(start) if start else 0
-                    end_idx = (
-                        all_col_names.index(end) + 1 if end else len(all_col_names)
-                    )
+                    step = int(step)
                 except ValueError:
-                    raise DPValueError(f"Invalid slice: {cols}")
-                selected = all_col_names[start_idx:end_idx]
-                if step is not None:
-                    selected = selected[::step]
-                return tuple(selected)
-            else:
-                return (cols,)
-        elif isinstance(cols, (list, tuple)):
-            return tuple(cols)
+                    raise DPValueError(f"Invalid step value: {step}")
+
+            selected = all_col_names[start_idx:end_idx]
+            if step is not None:
+                selected = selected[::step]
+            return tuple(selected)
         else:
-            raise DPValueError("Unsupported columns selector type")
+            raise DPValueError(f"Unknown selector type: {self.columns.tp}")
 
     @lru_cache
     def validate_against_schema(self, ds):
         dataframe = self._get_dataframe(ds)
-        query_cols = set(self.columns)
-        df_cols = set(col.name for col in dataframe.columns)
+        query_cols = set(self.parse_columns(ds))
+        df_cols = {col.name for col in dataframe.columns}
         if len(query_cols & df_cols) != len(query_cols):
             raise DPValueError("Non existent columns queried")
+
+    @lru_cache
+    def repr_columns(self, ds: SchemaDataset) -> list[str]:
+        return list(self.parse_columns(ds))
 
 
 # Please fix SumQuery. The resulting shape is 1 x columns.shape()[1] (as all rows are summed).
@@ -173,8 +218,8 @@ class SumQuery(BroadcastLipschitzMixin):
         # All rows are summed, so shape is (1, number of columns)
         return (1, self.columns.n_cols(ds))
 
-    def max_changed_rows(self, ds) -> int:
-        return 1
+    def max_changed_rows(self, ds) -> list[int]:
+        return [1] * self.n_cols(ds)
 
     @lru_cache
     def get_lipschitz_parameter(self, ds, norm: str) -> float:
@@ -208,6 +253,10 @@ class SumQuery(BroadcastLipschitzMixin):
     def validate_against_schema(self, ds):
         self.columns.validate_against_schema(ds)
 
+    def repr_columns(self, ds: SchemaDataset) -> list[str]:
+        col_names = self.columns.repr_columns(ds)
+        return [f"sum({col})" for col in col_names]
+
 
 # Please fix MeanQuery similarly to sum query.
 # For lipschitz parameter it is 1 / columns/len(ds).
@@ -226,7 +275,7 @@ class MeanQuery(BroadcastLipschitzMixin):
         return (1, self.columns.n_cols(ds))
 
     def max_changed_rows(self, ds) -> int:
-        return 1
+        return [1] * self.n_cols(ds)
 
     @lru_cache
     def max_over_columns(self, ds):
@@ -257,6 +306,10 @@ class MeanQuery(BroadcastLipschitzMixin):
 
     def validate_against_schema(self, ds):
         self.columns.validate_against_schema(ds)
+
+    def repr_columns(self, ds: SchemaDataset) -> list[str]:
+        col_names = self.columns.repr_columns(ds)
+        return [f"mean({col})" for col in col_names]
 
 
 # Please fix Covariance query.
@@ -296,7 +349,7 @@ class CovarianceQuery(DPQueryMixin):
         return (1, n_cols1 * n_cols2)
 
     def max_changed_rows(self, ds) -> int:
-        return 1
+        return [1] * self.n_cols(ds)
 
     def max_over_columns(self, ds):
         # Calculate all combinations of max and min, take max of them
@@ -381,10 +434,21 @@ class CovarianceQuery(DPQueryMixin):
         if self.columns2 is not None:
             self.columns2.validate_against_schema(ds)
 
+    def repr_columns(self, ds: SchemaDataset) -> list[str]:
+        columns2 = self._get_columns2()
+        col_names1 = self.columns1.repr_columns(ds)
+        col_names2 = columns2.repr_columns(ds)
+
+        result = []
+        for col1 in col_names1:
+            for col2 in col_names2:
+                result.append(f"cov({col1}, {col2})")
+        return result
+
 
 class HistogramQuery(DPQueryMixin):
     tp: Literal["histogram"]
-    columns: ColumnsQuery = Field(discriminator="tp")
+    columns: "OneOfQueries" = Field(discriminator="tp")
     bins: int
 
     def get_arguments(self) -> list[DPQueryMixin]:
@@ -394,7 +458,7 @@ class HistogramQuery(DPQueryMixin):
         return (self.bins, 1)
 
     def max_changed_rows(self, ds) -> int:
-        return [self.columns.max_changed_rows(ds) * 2]
+        return [self.columns.max_changed_rows(ds)[0] * 2]
 
     def max_over_columns(self, ds):
         return [self.columns.len(ds)]
@@ -403,10 +467,10 @@ class HistogramQuery(DPQueryMixin):
         return [0]
 
     def max_norm_over_columns(self, ds, norm: str) -> list[float]:
-        return [self.columns.len()]
+        return [self.columns.len(ds)]
 
     def sensitivity_over_columns(self, ds, norm: str) -> list[float]:
-        max_changed = self.columns.max_changed_rows(ds)
+        max_changed = self.columns.max_changed_rows(ds)[0]
         if norm == "l1":
             return [2 * max_changed]
         elif norm == "l2":
@@ -420,6 +484,12 @@ class HistogramQuery(DPQueryMixin):
             raise DPValueError(
                 "Histograms are supported only for single columned queries"
             )
+
+    def repr_columns(self, ds: SchemaDataset) -> list[str]:
+        col_names = self.columns.repr_columns(ds)
+        # Histogram always operates on a single column and returns bins
+        col_name = col_names[0] if col_names else "unknown"
+        return [f"hist({col_name})"]
 
 
 OneOfQueries = ColumnsQuery | SumQuery | MeanQuery | HistogramQuery | CovarianceQuery

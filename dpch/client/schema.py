@@ -12,6 +12,6 @@ class SchemaCache:
     def get_schema(self) -> SchemaResponse:
         if "schema" in self._cache:
             return self._cache["schema"]
-        schema = self.client.schema()
+        schema = self.client.schema().ch_schema
         self._cache["schema"] = schema
         return schema

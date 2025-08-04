@@ -23,6 +23,7 @@ class TLVTag(IntEnum):
     RAW_RESULT = 4
     SENSITIVITY = 5
     EXECUTOR_INFO = 6
+    COLUMN_NAMES = 7
 
 
 class TLVResponse(Response):
@@ -52,10 +53,11 @@ class RunQueryResponse(BaseModel):
     tp: Literal["RunQueryResponse"] = "RunQueryResponse"
     result: NDArray[Shape["*, *"], np.float64]  # noqa: F722
     new_session: Session
+    column_names: list[str]
 
     def create_tlv_response(self) -> TLVResponse:
         """Create TLV response from this response object"""
-        tlv = uttlv.TLV()
+        tlv = uttlv.TLV(tag_size=1, len_size=4)
 
         # Serialize numpy arrays as binary
         tlv[TLVTag.RESULT] = serialize_numpy_to_bytes(self.result)
@@ -63,6 +65,7 @@ class RunQueryResponse(BaseModel):
         # Serialize other fields as JSON
         tlv[TLVTag.TP] = self.tp.encode()
         tlv[TLVTag.NEW_SESSION] = self.new_session.model_dump_json().encode()
+        tlv[TLVTag.COLUMN_NAMES] = json.dumps(self.column_names).encode()
 
         tlv_bytes = tlv.to_byte_array()
         return TLVResponse(content=tlv_bytes)
@@ -75,10 +78,12 @@ class RunQueryResponse(BaseModel):
 
         # Deserialize other fields from JSON
         new_session = Session.model_validate_json(tlv[TLVTag.NEW_SESSION].decode())
+        column_names = json.loads(tlv[TLVTag.COLUMN_NAMES].decode())
 
         return cls(
             result=result,
             new_session=new_session,
+            column_names=column_names,
         )
 
 
@@ -90,7 +95,7 @@ class DebugQueryResponse(RunQueryResponse):
 
     def create_tlv_response(self) -> TLVResponse:
         """Create TLV response from this response object"""
-        tlv = uttlv.TLV()
+        tlv = uttlv.TLV(tag_size=1, len_size=4)
 
         # Serialize numpy arrays as binary
         tlv[TLVTag.RESULT] = serialize_numpy_to_bytes(self.result)
@@ -99,6 +104,7 @@ class DebugQueryResponse(RunQueryResponse):
         # Serialize other fields as JSON
         tlv[TLVTag.TP] = self.tp.encode()
         tlv[TLVTag.NEW_SESSION] = self.new_session.model_dump_json().encode()
+        tlv[TLVTag.COLUMN_NAMES] = json.dumps(self.column_names).encode()
         tlv[TLVTag.SENSITIVITY] = json.dumps(self.sensitivity).encode()
         tlv[TLVTag.EXECUTOR_INFO] = json.dumps(self.executor_info).encode()
 
@@ -114,6 +120,7 @@ class DebugQueryResponse(RunQueryResponse):
 
         # Deserialize other fields from JSON
         new_session = Session.model_validate_json(tlv[TLVTag.NEW_SESSION].decode())
+        column_names = json.loads(tlv[TLVTag.COLUMN_NAMES].decode())
         sensitivity = json.loads(tlv[TLVTag.SENSITIVITY].decode())
         executor_info = json.loads(tlv[TLVTag.EXECUTOR_INFO].decode())
 
@@ -123,14 +130,14 @@ class DebugQueryResponse(RunQueryResponse):
             sensitivity=sensitivity,
             executor_info=executor_info,
             new_session=new_session,
+            column_names=column_names,
         )
 
 
 def response_from_tlv_bytes(data: bytes) -> RunQueryResponse | DebugQueryResponse:
     """Factory function to create appropriate response from TLV bytes"""
-    tlv = uttlv.TLV()
-    tlv.from_byte_array(data)
-
+    tlv = uttlv.TLV(tag_size=1, len_size=4)
+    tlv.parse_array(data)
     # Get the response type from TLV
     response_type = tlv[TLVTag.TP].decode()
 
