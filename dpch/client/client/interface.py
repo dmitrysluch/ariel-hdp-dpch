@@ -5,6 +5,7 @@ from dpch.common.api import (
     QueryRequest,
     RunQueryResponse,
     SchemaResponse,
+    SessionResponse,
 )
 
 # Make ClientMixin class. it is ABC class and provides methods query(which takes QueryRequest as parameter) returning RunQueryResponse or DebugQueryResponse and schema without arguments returning SchemaResponse. Don't implement these methods
@@ -17,4 +18,8 @@ class ClientMixin(ABC):
 
     @abstractmethod
     def schema(self) -> SchemaResponse:
+        pass
+
+    @abstractmethod
+    def session(self) -> SessionResponse:
         pass

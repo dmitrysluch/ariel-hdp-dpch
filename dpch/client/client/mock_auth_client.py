@@ -10,9 +10,9 @@ class MockAuthClient(Client):
         """
         Authenticate using the given Session model. Stores the token in the requests session headers.
         """
-        resp = self.session.post(
+        resp = self.http_session.post(
             f"{self.base_url}/auth/new", json={"session": session.model_dump()}
         )
         resp.raise_for_status()
         token = resp.json()["token"]
-        self.session.headers["Authorization"] = f"Bearer {token}"
+        self.http_session.headers["Authorization"] = f"Bearer {token}"

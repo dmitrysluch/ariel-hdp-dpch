@@ -4,8 +4,8 @@ from typing import Self
 
 import pandas as pd
 
+from dpch.client.cache import Cache
 from dpch.client.client.interface import ClientMixin
-from dpch.client.schema import SchemaCache
 from dpch.common.api import DebugQueryResponse, QueryRequest, RunQueryResponse
 from dpch.common.queries.interface import DPValueError
 from dpch.common.queries.queries import (
@@ -94,7 +94,7 @@ class BaseDataframe:
 @dataclasses.dataclass(repr=False, frozen=True, kw_only=True)
 class DataFrame(BaseDataframe):
     client: ClientMixin
-    schema_cache: SchemaCache
+    cache: Cache
 
     # Lets fix preview method implementation.
     # It has to return dataframe with index
@@ -102,7 +102,7 @@ class DataFrame(BaseDataframe):
     # Return all the fields relevant to the column:
     # l1, l2 sensitivity and max_norms, min, max, maximum_rows_changed, etc
     def preview(self) -> pd.DataFrame:
-        ds = self.schema_cache.get_schema()
+        ds = self.cache.schema()
         q = self.effective_query
 
         q.validate_against_schema(ds)
@@ -132,7 +132,7 @@ class DataFrame(BaseDataframe):
         return df
 
     def run(self) -> "QueryResultWrapper":
-        ds = self.schema_cache.get_schema()
+        ds = self.cache.schema()
         if self.query is None:
             raise ValueError("No query set for run")
         self.effective_query.validate_against_schema(ds)

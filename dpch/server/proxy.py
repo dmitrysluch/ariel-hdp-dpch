@@ -8,6 +8,7 @@ from dpch.common.api import (
     QueryRequest,
     RunQueryResponse,
     SchemaResponse,
+    SessionResponse,
 )
 from dpch.common.noise import NotEnoughPrivacyBudget, create_noise_from_query
 from dpch.common.queries.interface import DPValueError
@@ -63,6 +64,14 @@ def handle_schema(
         ) from e
 
     return SchemaResponse(schema=dataset)
+
+
+@app.get("/session")
+def handle_session(
+    session: ServerSession = Depends(get_session, use_cache=True),
+) -> SessionResponse:
+    """Get current session state."""
+    return SessionResponse(session=session)
 
 
 # Please fix run_query method. Get config from app.state.config

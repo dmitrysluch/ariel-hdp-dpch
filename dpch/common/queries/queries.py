@@ -407,8 +407,10 @@ class CovarianceQuery(DPQueryMixin):
                 if norm in ["l1", "l2"]:
                     # Cauchy-Schwartz bound: multiply norms, divide by len and take sqrt
                     result.append(
-                        min((norms1[i] * norms2[j] / size) ** 0.5),
-                        norm_via_min_max[i * len(norms1) + j],
+                        min(
+                            (norms1[i] * norms2[j] / size) ** 0.5,
+                            norm_via_min_max[i * len(norms1) + j],
+                        ),
                     )
                 else:
                     raise DPValueError(f"Unsupported norm: {norm}")

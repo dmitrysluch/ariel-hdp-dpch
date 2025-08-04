@@ -151,3 +151,7 @@ def response_from_tlv_bytes(data: bytes) -> RunQueryResponse | DebugQueryRespons
 
 class SchemaResponse(BaseModel):
     ch_schema: SchemaDataset = Field(alias="schema")
+
+
+class SessionResponse(BaseModel):
+    session: Session

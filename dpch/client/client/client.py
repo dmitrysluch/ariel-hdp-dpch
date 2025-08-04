@@ -6,18 +6,21 @@ from dpch.common.api import (
     QueryRequest,
     RunQueryResponse,
     SchemaResponse,
+    SessionResponse,
     response_from_tlv_bytes,
 )
 
 # Lets implement Client using requests library. Use session for connection pooling.
 # Don't care about auth here, it will be added in child classes
 
+# Please add session method to client which gets session
+
 
 class Client(ClientMixin):
     def __init__(self, base_url: str, use_tlv: bool = True):
         self.base_url = base_url.rstrip("/")
         self.use_tlv = use_tlv
-        self.session = requests.Session()
+        self.http_session = requests.Session()
 
     def query(self, request: QueryRequest) -> RunQueryResponse | DebugQueryResponse:
         headers = {"Content-Type": "application/json"}
@@ -25,7 +28,7 @@ class Client(ClientMixin):
             headers["Accept"] = "application/x-tlv"
         else:
             headers["Accept"] = "application/json"
-        resp = self.session.post(
+        resp = self.http_session.post(
             f"{self.base_url}/query", data=request.model_dump_json(), headers=headers
         )
         if not resp.ok:
@@ -43,9 +46,18 @@ class Client(ClientMixin):
 
     def schema(self) -> SchemaResponse:
         headers = {"Accept": "application/json"}
-        resp = self.session.get(f"{self.base_url}/schema", headers=headers)
+        resp = self.http_session.get(f"{self.base_url}/schema", headers=headers)
         if not resp.ok:
             raise requests.HTTPError(
                 f"HTTP {resp.status_code}: {resp.text}", response=resp
             )
         return SchemaResponse.model_validate(resp.json())
+
+    def session(self) -> SessionResponse:
+        headers = {"Accept": "application/json"}
+        resp = self.http_session.get(f"{self.base_url}/session", headers=headers)
+        if not resp.ok:
+            raise requests.HTTPError(
+                f"HTTP {resp.status_code}: {resp.text}", response=resp
+            )
+        return SessionResponse.model_validate(resp.json())
