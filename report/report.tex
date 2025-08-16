@@ -15,6 +15,7 @@
 \usepackage{hyperref}
 \usepackage{setspace}
 \usepackage{dsfont}
+\usepackage{todonotes}
 
 \hypersetup{%
   colorlinks=true,
@@ -130,44 +131,44 @@ Throughout this paper, we employ the following notation:
   \item $D$ and $D'$ represent two datasets that differ in exactly one row.
   \item $f$ denotes a query function submitted by a user.
   \item $\mathcal{A}$ represents the randomized algorithm executed by the server.
-  \item $S(f)$ denotes sensitivity of function $f$.
+  \item $S(f)$ denotes the sensitivity of function $f$.
   \item $K(f)$ for a Lipschitz function $f$ denotes its Lipschitz constant.
-  \item $I_m$ stands for $m \times m$-identity matrix.
-  \item $\Lap$ denotes Laplacian distribution, $\No$ - Normal, $\Phi(y)$ is a CDF of standard Gaussian, $\phi(y)$ for PDF.
+  \item $I_m$ stands for the $m \times m$ identity matrix.
+  \item $\Lap$ denotes the Laplace distribution, $\No$ the Normal distribution; $\Phi(y)$ is the CDF and $\phi(y)$ the PDF of the standard normal distribution.
+  \item We use the word \emph{strategy} to denote both the analyst's decision rule and the server's response rule. When randomness is involved, we say \emph{randomized strategy}. The term \emph{algorithm} may appear synonymously; however, \emph{strategy} is preferred throughout this text.
 \end{itemize}
 
 \section{Theory behind Differential Privacy}
 
-The modern concept behind Differential Privacy was introduced in~\cite{dwork}. In this text we use slightly modified definition:
+The modern concept behind Differential Privacy was introduced in~\cite{dwork}. In this text we use a slightly modified definition:
 
 \begin{definition}
 A randomized algorithm $\mathcal{A}$ is considered $(\eps, \delta)$-differentially private if for any set $S$ in the Borel sigma-algebra over $\R^n$ and for any two datasets $D, D'$ that differ in a single sample, the following holds:
 $$
 \Pr[\mathcal{A}(D) \in S] \leq e^{\eps}\Pr[\mathcal{A}(D') \in S] + \delta
 $$
-The algorithm is called pure $\eps$-differentially private if the bound holds for $\delta=0$
+The algorithm is called pure $\eps$-differentially private if the bound holds for $\delta=0$.
 \end{definition}
 
 Here is an example. Suppose we have a dataset with a single column of values from $\{0, 1\}$ and we want to compute the sum of these values. The server will respond using this algorithm:
 $$
 \mathcal{A}(D) = \sum_i D_i + \operatorname{Lap}\left(0, \frac{1}{\eps}\right),
 $$
-where $\operatorname{Lap}(0, 1)$ is Laplacian noise with the following PDF:
+where $\operatorname{Lap}(0, b)$ is Laplace noise with the following PDF:
 $$
-F_{\operatorname{Lap}(\mu, b)}(y) = \frac{1}{2b}\exp(-\frac{|y - \mu|}{b}).
+\p_{\operatorname{Lap}(\mu, b)}(y) = \frac{1}{2b}\exp\!\left(-\frac{|y - \mu|}{b}\right).
 $$
 
-As Laplacian distribution is absolutely continuous it's enough to show bound on relation of PDFs, and the bound on probability of all Borel sets will follow. Indeed
-suppose for any $\tau \in S$ for some Borel $S$,
-$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq e^\eps,$$
+As the Laplace distribution is absolutely continuous, it is enough to show a bound on the ratio of PDFs; the bound on the probability of all Borel sets will follow. Indeed, suppose for any $\tau \in S$ for some Borel $S$,
+$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq e^{\eps},$$
 then:
-$$\Pr[\mathcal{A}(D) \in S] = \int_{S}\p[\mathcal{A}(D)](\tau)d\tau \leq \int_{S}\eps \p[\mathcal{A}(D')](\tau)d\tau \leq \eps \Pr[\mathcal{A}(D') \in S].$$
-We are left to prove the bound on relation of PDFs.
+$$\Pr[\mathcal{A}(D) \in S] = \int_{S}\p[\mathcal{A}(D)](\tau)\,d\tau \leq \int_{S} e^{\eps} \, \p[\mathcal{A}(D')](\tau)\,d\tau \leq e^{\eps} \, \Pr[\mathcal{A}(D') \in S].$$
+We are left to prove the bound on the ratio of PDFs.
 \begin{multline*}
 \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = 
 \exp\left(-\frac{|\tau - \sum_iD_i|}{1/\eps} + \frac{|\tau - \sum_iD'_i|}{1/\eps}\right) = \\
-\exp\left(\eps(|\tau - \sum_iD_i + \sum_iD_i - \sum_iD'_i| - |\tau - \sum_iD_i|)\right) \overset{\textit{triangle inequality}}{\leq} \\
-\exp\left(\eps|\sum_iD'_i - \sum_iD_i|\right) \leq e^{\eps}
+\exp\left(\eps\big(|\tau - \sum_iD_i + \sum_iD_i - \sum_iD'_i| - |\tau - \sum_iD_i|\big)\right) \overset{\textit{triangle inequality}}{\leq} \\
+\exp\left(\eps\big|\sum_iD'_i - \sum_iD_i\big|\right) \leq e^{\eps}.
 \end{multline*}
 The last inequality follows because if a single item in the dataset changes (from 0 to 1 or vice versa), the sum changes by at most 1. This shows we have an $(\eps, 0)$-differentially private algorithm for computing sums.
 
@@ -175,24 +176,24 @@ The last inequality follows because if a single item in the dataset changes (fro
 We use the notion of sensitivity to measure the amount of noise needed to make an algorithm differentially private.
 
 \begin{definition}
-Given a norm $d: \R^n \to \R_+$, the sensitivity of a function $f$ denoted $S(f)$ is defined as the supremum of $d(f(D), f(D'))$ over all datasets $D, D' \in \mathcal{D}$ differing in a single item. We say L1-sensitivity and L2-sensitivity for sensitivity with norm $d$ being $||*||_1$ and $||*||_2$
+Given a norm $d: \R^n \to \R_+$, the sensitivity of a function $f$ denoted $S(f)$ is defined as the supremum of $d(f(D), f(D'))$ over all datasets $D, D' \in \mathcal{D}$ differing in a single item. We refer to L1-sensitivity and L2-sensitivity when $d$ is $\|\cdot\|_1$ and $\|\cdot\|_2$, respectively.
 \end{definition}
 
 \begin{definition}
-  A function $f: \R_n \to \R_m$ is Lipschitz with constant $K(f)$, given norms $d_1: \R^n \to \R_+$ and $d_2: \R^m \to \R_+$, if for any $x, x' \in R_n$ it holds that:
+  A function $f: \R^n \to \R^m$ is Lipschitz with constant $K(f)$, given norms $d_1$ on $\R^n$ and $d_2$ on $\R^m$, if for any $x, x' \in \R^n$ it holds that:
   $$
-  d_2(f(x) - f(x')) \leq K(f)d_1(x - x')
+  d_2\big(f(x) - f(x')\big) \leq K(f)\, d_1(x - x').
   $$
 \end{definition}
 
 Let us examine a fundamental property regarding sensitivity composition.
 \begin{remark}
   \label{rm:lipschitz}
-For any function $f: \mathcal{D} \to \R_m$ with sensitivity $S(f)$ under norm $d_1$, and function $g: \R_m \to \R_k$ that is Lipschitz with constant $K(g)$ under norms $d_1,d_2$, their composition $g \circ f$ has sensitivity at most $K(g)S(f)$ under norm $d_2$.
+For any function $f: \mathcal{D} \to \R^m$ with sensitivity $S(f)$ under norm $d_1$, and any function $g: \R^m \to \R^k$ that is Lipschitz with constant $K(g)$ under norms $d_1,d_2$, their composition $g \circ f$ has sensitivity at most $K(g)S(f)$ under norm $d_2$.
 \end{remark}
 \begin{proof}
-  Consider any datasets $D, D'$ that differ in one element. By definition of sensitivity, $d_1(f(D) - f(D')) \leq S(f)$. Then applying the Lipschitz property of $g$:
-  $$d_2(g(f(D)) - g(f(D'))) \leq K(g)d_1(f(D) - f(D')) \leq K(g)S(f).$$
+  Consider any datasets $D, D'$ that differ in one element. By definition of sensitivity, $d_1\big(f(D) - f(D')\big) \leq S(f)$. Then applying the Lipschitz property of $g$:
+  $$d_2\big(g(f(D)) - g(f(D'))\big) \leq K(g)\, d_1\big(f(D) - f(D')\big) \leq K(g)S(f).$$
 \end{proof}
 
 % \begin{remark}
@@ -202,96 +203,96 @@ For any function $f: \mathcal{D} \to \R_m$ with sensitivity $S(f)$ under norm $d
 
 Now we are ready to provide two noising algorithms and corresponding bounds.
 
-\subsubsection{Laplacian Noise}
+\subsubsection{Laplace Noise}
 
 \begin{theorem}
   \label{thm:laplacian}
 Suppose $f: \mathcal{D} \to \R^m$ has L1-sensitivity $S(f)$. Then the following algorithm $\mathcal{A}$ is $(\eps, 0)$-differentially private:
-$$\mathcal{A}(D)_i := f(D)_i + \operatorname{Lap}(0, \frac{S(f)}{\eps}),$$
-that is we add independent Laplacian noise scaled by $\frac{S(f)}{\eps}$ to each element of the resulting vector.
+$$\mathcal{A}(D)_i := f(D)_i + \operatorname{Lap}(0, \tfrac{S(f)}{\eps}),$$
+that is, we add independent Laplace noise scaled by $\frac{S(f)}{\eps}$ to each element of the resulting vector (this is not the same as multidimensional Laplace noise).
 \end{theorem}
 \begin{proof}
-  The idea is the same as in the sum example. We study PDFs, and by absolute continuity, the bound translates to probability of arbitrary Borel sets. Fix arbitrary $\tau \in \R^m$. By independence of noise over vector elements:
-  \begin{multline*}
+  The idea is the same as in the sum example. We study PDFs, and by absolute continuity, the bound translates to probabilities of arbitrary Borel sets. Fix arbitrary $\tau \in \R^m$. By independence of noise over vector elements:
+  \begin{align*}
     \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = 
-    \prod_{i}^m \frac{p[\Lap(0, S(f) / \eps)](\tau_i - f(D)_i)}{p[\Lap(0, S(f) / \eps)](\tau_i - f(D')_i)} = 
-    \prod_{i}^m \exp\left(-\frac{|\tau - f(D)_i|}{S(f)/\eps} + \frac{|\tau - f(D')_i|}{S(f)/\eps}\right) = \\
-    \prod_{i}^m \exp\left(\frac{\eps}{S(f)}(|\tau - f(D)_i + f(D)_i - f(D')_i| - |\tau - f(D)_i|)\right) \overset{\textit{triangle inequality}}{\leq} \\
-    \prod_{i}^m \exp\left(\frac{\eps}{S(f)}|f(D)_i - f(D')_i|\right) = \exp\left(\frac{\eps}{S(f)} \sum_i |f(D)_i - f(D')_i|\right) = \exp\left(\frac{\eps ||f(D) - f(D')||_1}{S(f)}\right) \leq \eps.
-    \end{multline*}
+    &\prod_{i=1}^m \frac{\p[\Lap(0, S(f) / \eps)](\tau_i - f(D)_i)}{\p[\Lap(0, S(f) / \eps)](\tau_i - f(D')_i)} = \\
+    &\prod_{i=1}^m \exp\left(-\frac{|\tau_i - f(D)_i|}{S(f)/\eps} + \frac{|\tau_i - f(D')_i|}{S(f)/\eps}\right) = \\
+    &\prod_{i=1}^m \exp\left(\eps\big(|\tau_i - f(D)_i + f(D)_i - f(D')_i| - |\tau_i - f(D)_i|\big)\right) \overset{\textit{triangle inequality}}{\leq} \\
+    &\prod_{i=1}^m \exp\left(\eps\big|f(D)_i - f(D')_i\big|\right) = \exp\left(\frac{\eps}{S(f)} \sum_{i=1}^m |f(D)_i - f(D')_i|\right) =\\
+    &\exp\left(\frac{\eps \, \|f(D) - f(D')\|_1}{S(f)}\right) \leq e^{\eps}.
+    \end{align*}
 \end{proof}
 
 \subsubsection{Gaussian Noise}
 
-The other option we have is applying Gaussian Noise. Analysis in this case is a bit harder, so we start with the univariate case.
+The other option we have is applying Gaussian noise. Analysis in this case is a bit harder, so we start with the univariate case.
 
-{\it Note: These bounds are known but proves I provide here I invented myself (although most likely it's the way these bounds are usually proved).}
+{\it Note: The following bounds are known, but I provide proofs I came up with myself (although most likely it's the way these bounds are usually proved).}
 \begin{lemma}
   \label{lm:gaussian}
-Suppose $f: \mathcal{D} \to \R$ has L2-sensitivity $S(f)$. Then for arbitrary $\alpha, \sigma > 0$ the following algorithm $\mathcal{A}$ is $\left(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}, 2 - 2\Phi(\alpha)\right)$-differentially private.
-$$\mathcal{A}(D) := f(D) + \operatorname{\No}(0, \sigma^2),$$
+Suppose $f: \mathcal{D} \to \R$ has L2-sensitivity $S(f)$. Then for arbitrary $\alpha, \sigma > 0$ the following algorithm $\mathcal{A}$ is $\left(\tfrac{S(f)^2}{2\sigma^2} + \tfrac{\alpha S(f)}{\sigma},\; 2 - 2\Phi(\alpha)\right)$-differentially private:
+$$\mathcal{A}(D) := f(D) + \operatorname{\No}(0, \sigma^2).$$
 \end{lemma}
 \begin{proof}
-  We start with bounds of relation of PDFs as before.
-  \begin{multline*}
-    \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = 
-    \frac{p[\No(0, \sigma^2)](\tau - f(D))}{p[\No(0,\sigma^2)](\tau_i - f(D')_i)} = 
-    \exp\left(-\frac{|\tau - f(D)_i|^2}{2\sigma^2} + \frac{|\tau - f(D')_i|^2}{2\sigma^2}\right) = \\
-    \exp\left(\frac{1}{2\sigma^2}(|\tau - f(D) + f(D) - f(D')|^2 - |\tau - f(D)|^2)\right) \leq \\
-    \exp\left(\frac{1}{2\sigma^2}(|f(D) - f(D')|^2 + 2|f(D) - f(D')||\tau - f(D)|)\right).
-\end{multline*}
-
+  We start with a bound on the ratio of PDFs as before.
+  \begin{align*}
+    \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = &
+    \frac{\p[\No(0, \sigma^2)](\tau - f(D))}{\p[\No(0,\sigma^2)](\tau - f(D'))} = \\
+    &\exp\left(-\frac{|\tau - f(D)|^2}{2\sigma^2} + \frac{|\tau - f(D')|^2}{2\sigma^2}\right) = \\
+    &\exp\left(\frac{1}{2\sigma^2}\left(|\tau - f(D) + f(D) - f(D')|^2 - |\tau - f(D)|^2\right)\right) \\
+    &\leq \exp\left(\frac{1}{2\sigma^2}\left(|f(D) - f(D')|^2 + 2|f(D) - f(D')|\cdot|\tau - f(D)|\right)\right).
+\end{align*}
 Here we encounter a problem: $|\tau - f(D)|$ is a multiplier to the sensitivity. We use the following trick.
-For now, we consider only Borel sets $S \subseteq [f(D) - \alpha\sigma, f(D) + \alpha\sigma]$.
-For any point $\tau$ in such set $|\tau - f(D)| \leq \alpha\sigma$, therefore 
-$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq \exp(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}).$$
-Denote $\eps := \frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}$. We have
-$$\Pr[\mathcal{A}(D) \in S] \leq e^{\eps} \Pr[\mathcal{A}(D') \in S].$$
-Now consider an arbitrary Borel set $T \in \R$. Let $S = T \cap [f(D) -\alpha\sigma, f(D)\alpha\sigma], S' = T \setminus [f(D) - \alpha\sigma, f(D) + \alpha\sigma]$. Sets $S$ and $S'$ are obviously Borel and $T$ is their disjoint union, therefore:
+For now, consider only Borel sets $S \subseteq [f(D) - \alpha\sigma, f(D) + \alpha\sigma]$.
+For any $\tau$ in such a set, $|\tau - f(D)| \leq \alpha\sigma$, therefore 
+$$\frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} \leq \exp\!\left(\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma}\right).$$
+Denote $\eps := \tfrac{S(f)^2}{2\sigma^2} + \tfrac{\alpha S(f)}{\sigma}$. We have
+$$\Pr[\mathcal{A}(D) \in S] \leq e^{\eps} \, \Pr[\mathcal{A}(D') \in S].$$
+Now consider an arbitrary Borel set $T \subseteq \R$. Let $S = T \cap [f(D) -\alpha\sigma, f(D)+\alpha\sigma]$, $S' = T \setminus [f(D) - \alpha\sigma, f(D) + \alpha\sigma]$. Then $T = S \sqcup S'$ and
 \begin{multline*}
-\Pr[\mathcal{A}(D) \in T] = \Pr[\mathcal{A}(D) \in S] + \Pr[\mathcal{A}(D) \in S'] \leq \\
-e^\eps \Pr[\mathcal{A}(D') \in S] + \Pr[\mathcal{A}(D) \in [f(D) -\alpha\sigma, f(D)\alpha\sigma]] \leq e^{\eps} \Pr[\mathcal{A}(D') \in T] + (2 - 2\Phi(\alpha)).
+\Pr[\mathcal{A}(D) \in T] = \Pr[\mathcal{A}(D) \in S] + \Pr[\mathcal{A}(D) \in S'] \leq\\
+ e^{\eps} \, \Pr[\mathcal{A}(D') \in S] + \Pr\left[\mathcal{A}(D) \notin [f(D) -\alpha\sigma, f(D)+\alpha\sigma]\right] \\ \leq e^{\eps} \, \Pr[\mathcal{A}(D') \in T] + \left(2 - 2\Phi(\alpha)\right).
 \end{multline*}
-We set $\delta := 2 - 2\Phi(\alpha)$
+Set $\delta := 2 - 2\Phi(\alpha)$.
 \end{proof}
 \begin{corollary}
-  For $\delta \leq 0.1, \eps \leq 4$ algorithm above provides $(\eps, \delta)$-distributed privacy for $\alpha = \sqrt{2 \ln{\frac{1}{\delta}}}, \sigma = \frac{2\alpha S(f)}{\eps}$.
+  \label{cor:coef}
+  For $\delta \leq 0.1$ and $\eps \leq 4$, the algorithm above provides $(\eps, \delta)$-differential privacy with parameters $\alpha = \sqrt{2 \ln\tfrac{1}{\delta}}$, $\sigma = \tfrac{2\alpha \, S(f)}{\eps}$.
 \end{corollary}
 \begin{proof}
-First we check the bound on $\delta$. We can bound Gaussian tails from above in following manner:
+First we check the bound on $\delta$. We can bound Gaussian tails from above as
 $$1 - \Phi(a) \leq \frac{\phi(a)}{a}\left(1 + \frac{1}{a^2}\right).$$
-Substituting:
-$$
-2(1 - \Phi(\alpha)) \leq \frac{2}{\sqrt{2\pi}} \exp\left(-\frac{\alpha^2}{2}\right)\left(\frac{1 + \alpha}{\alpha^3}\right) = \frac{2}{\sqrt{2\pi}} \exp\left(-\ln\frac{1}{\delta}\right)\left(\frac{1 + \alpha}{\alpha^3}\right) \leq \frac{2}{\sqrt{2\pi}}\delta \left(\frac{1 + \alpha}{\alpha^3}\right) = *.
-$$
-Notice that as $\pi > 2$, $\frac{2}{\sqrt{2\pi}} < 1$. As $\delta \leq 0.1 < e^{-2}$, $$\alpha = \sqrt{2\ln\frac{1}{\delta}} \geq \sqrt{2\ln e^2} \geq \sqrt{8},$$ 
-$$\frac{1 + \alpha}{\alpha^3} \leq \frac{1 + 2\sqrt{2}}{16\sqrt{2}} \leq 1.$$
+Substituting $a=\alpha$ and using $\phi(\alpha)=\frac{1}{\sqrt{2\pi}}\exp(-\alpha^2/2)$,
+\begin{multline*}
+2(1 - \Phi(\alpha)) \leq \frac{2}{\sqrt{2\pi}} \exp\left(-\frac{\alpha^2}{2}\right) \cdot \left(\frac{1 + \alpha^2}{\alpha^3}\right) 
+= \frac{2}{\sqrt{2\pi}} \, e^{-\ln(1/\delta)} \, \left(\frac{1 + \alpha^2}{\alpha^3}\right) \\
+= \frac{2}{\sqrt{2\pi}}\, \delta \, \left(\frac{1 + \alpha^2}{\alpha^3}\right) \leq \delta,
+\end{multline*}
+where the last inequality holds since $\tfrac{2}{\sqrt{2\pi}}<1$ and, for $\delta\le 0.1$, we have $\alpha=\sqrt{2\ln(1/\delta)}\ge 2$, implying $\tfrac{1+\alpha^2}{\alpha^3} \le \tfrac{5}{8} < 1$.
 
-Therefore, indeed $2(1 - \Phi(\alpha)) \leq \delta$.
-
-Now consider:
-$$\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma} = \frac{S(f)^2\eps^2}{8\alpha^2S(f)^2} + \frac{\eps \alpha S(f)}{2\alpha S(f)} = \frac{\eps^2}{8\alpha^2} + \frac{\eps}{2} \leq \frac{\eps^2}{64} + \frac{\eps}{2} \leq \eps$$
+Now consider
+$$\frac{S(f)^2}{2\sigma^2} + \frac{\alpha S(f)}{\sigma} = \frac{S(f)^2\eps^2}{8\alpha^2S(f)^2} + \frac{\eps \, \alpha S(f)}{2\alpha S(f)} = \frac{\eps^2}{8\alpha^2} + \frac{\eps}{2}.$$
+Since $\alpha^2 = 2\ln(1/\delta) \ge 2$ for $\delta\leq 0.1$ and $\eps\leq 4$, we get $\tfrac{\eps^2}{8\alpha^2} \le \tfrac{\eps^2}{16} \le \tfrac{\eps}{4}$. Hence the sum is at most $\tfrac{3}{4}\eps \le \eps$.
 \end{proof}
 
-Next let's examine the multivariate case. In the univariate case, we defined a range where the multiplicative bound is valid, and showed that the probability of being outside this range is small for the random variable $\mathcal{A}(D)$. While we could apply the same approach to the multivariate case, it would yield poor results due to the Curse of Dimensionality. Specifically, we would need to consider the box $f(D) + [-\alpha\sigma, \alpha\sigma]^m$ for the multiplicative bound to work for all coordinates. Applying a union bound over the probability of being outside this box in each dimension would result in $\delta = 1 - (2\Phi(\alpha) - 1)^m$. This bound approaches 1 exponentially fast with dimension $m$, making it impractical.\\
+Next, let's examine the multivariate case. In the univariate case, we defined a range where the multiplicative bound is valid and showed that the probability of being outside this range is small for the random variable $\mathcal{A}(D)$. While we could apply the same approach to the multivariate case, it would yield poor results due to the curse of dimensionality. Specifically, we would need to consider the box $f(D) + [-\alpha\sigma, \alpha\sigma]^m$ for the multiplicative bound to work for all coordinates. Applying a union bound over the probability of being outside this box in each dimension would result in $\delta = 1 - (2\Phi(\alpha) - 1)^m$. This bound approaches 1 exponentially fast with dimension $m$, making it impractical.\\
 
 We take a different approach by modifying our bounds on probability density ratios. This modification allows us to redefine when the multiplicative bound fails in terms of a sum of weighted Gaussian variables. Since such a sum follows a Gaussian distribution, we can apply standard tail bounds to obtain the desired result.
 
 \begin{theorem}
 \label{tm:gaussian}
-Suppose $f: \mathcal{D} \to \R^m$ has L2-sensitivity $S(f)$. Then for arbitrary $\alpha, \sigma > 0$ the following algorithm $\mathcal{A}$ is $\left(\frac{S(f)^2}{\sigma^2} + \frac{\alpha S(f)}{\sigma}, 2 - 2\Phi(\alpha)\right)$-differentially private:
+Suppose $f: \mathcal{D} \to \R^m$ has L2-sensitivity $S(f)$. Then for arbitrary $\alpha, \sigma > 0$ the following algorithm $\mathcal{A}$ is $\left(\tfrac{S(f)^2}{2\sigma^2} + \tfrac{\alpha S(f)}{\sigma},\; 2 - 2\Phi(\alpha)\right)$-differentially private:
 $$\mathcal{A}(D)_i := f(D)_i + \operatorname{\No}(0, \sigma^2)_i.$$
 \end{theorem}
 \begin{proof}
 First we need a bound on PDFs. As PDFs are independent Gaussians, we can apply bound from Lemma~\ref{lm:gaussian} to each of marginals.
 \begin{align*}
-  \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} = &\prod_{i}\frac{\p[\mathcal{A}(D)_i](\tau)}{\p[\mathcal{A}(D')_i](\tau)} = 
-   \\
-   &\prod_{i}\exp\left(\frac{1}{2\sigma^2}(|\tau_i - f(D)_i + f(D)_i - f(D')_i|^2 - |\tau_i - f(D)_i|^2)\right) = \\
-   &\prod_{i}\exp\left(\frac{1}{2\sigma^2}(|f(D)_i - f(D')_i|^2 + 2(\tau_i - f(D)_i)(f(D)_i - f(D')_i))\right) = \\
-   &\exp\left(\frac{1}{2\sigma^2}\left(\sum_{i}|f(D)_i - f(D')_i|^2 + 2\sum_{i}(\tau_i - f(D)_i)(f(D)_i - f(D')_i)\right)\right) = \\
-   &\exp\left(\frac{1}{2\sigma^2}(||f(D) - f(D')||_2^2 + 2\langle\tau - f(D), f(D) - f(D')\rangle)\right) \leq \\
-   &\exp\left(\frac{1}{2\sigma^2}(||f(D) - f(D')||_2^2 + 2|\langle\tau - f(D), f(D) - f(D')\rangle|)\right).
+  \frac{\p[\mathcal{A}(D)](\tau)}{\p[\mathcal{A}(D')](\tau)} 
+  &= \prod_{i=1}^m\frac{\p[\mathcal{A}(D)_i](\tau_i)}{\p[\mathcal{A}(D')_i](\tau_i)} \\
+  &= \prod_{i=1}^m\exp\left(\frac{1}{2\sigma^2}\left(|\tau_i - f(D)_i + f(D)_i - f(D')_i|^2 - |\tau_i - f(D)_i|^2\right)\right) \\
+  &= \prod_{i=1}^m\exp\left(\frac{1}{2\sigma^2}\left(|f(D)_i - f(D')_i|^2 + 2(\tau_i - f(D)_i)(f(D)_i - f(D')_i)\right)\right) \\
+  &= \exp\left(\frac{1}{2\sigma^2}\left(\sum_{i=1}^m|f(D)_i - f(D')_i|^2 + 2\sum_{i=1}^m(\tau_i - f(D)_i)(f(D)_i - f(D')_i)\right)\right) \\
+  &\leq \exp\left(\frac{1}{2\sigma^2}\left(\|f(D) - f(D')\|_2^2 + 2\big|\langle\tau - f(D), f(D) - f(D')\rangle\big|\right)\right).
 \end{align*}
 
 Denote $\Delta = f(D) - f(D')$. Denote $C = \{\tau \in \R^m: |\langle \tau - f(D), \Delta\rangle| \leq \alpha\sigma S(f)\}$.
@@ -307,10 +308,239 @@ Therefore $\Pr[|\langle \mathcal{A}(D) - f(D), \Delta\rangle| > \alpha\sigma S(f
 We finish the proof for arbitrary set $T$ by splitting it into disjoin union $T = S \sqcup S'$, $S \subseteq C, s' \subseteq \overline{C}$ and using union bound:
 \begin{multline*}
   \Pr[\mathcal{A}(D) \in T] = \Pr[\mathcal{A}(D) \in S] + \Pr[\mathcal{A}(D) \in S'] \leq \\
-  e^\eps\Pr[\mathcal{A}(D') \in S] + \Pr[\mathcal{A}(D') \in \overline{C}] \leq \eps^e \Pr[\mathcal{A}(D') \in T] + \delta
+  e^\eps\Pr[\mathcal{A}(D') \in S] + \Pr[\mathcal{A}(D') \in \overline{C}] \leq e^\eps \Pr[\mathcal{A}(D') \in T] + \delta
 \end{multline*}
 \end{proof}
 
+\begin{remark}
+  The bounds from Corollary~\ref{cor:coef} literally translate to the multidimensional case.
+\end{remark}
+
+\section{Adaptive algorithms}
+
+In real-world applications, analysts do not specify all queries in advance; querying is an iterative process. After observing the result of a query, the analyst chooses the next query. Moreover, the analyst is not required to make exactly $n$ queries: the process may stop early, and the total number of steps is itself a random variable. Queries can also be multi-dimensional, and some of them may be rejected by the server. To handle all these cases, we introduce a more general model. We do not reuse the formalization from the original article; instead, we present a self-contained definition and the accompanying privacy relation.
+
+\begin{definition}[Generalized adaptive differential privacy]
+  \label{def:generalized_adapt}
+We consider an interaction between an adversary (analyst) Mallory and a server. Mallory runs a deterministic strategy $\mathcal{M}$, and the server runs a randomized strategy $\mathcal{A}$. At step $i$, given the transcript of previous answers $t_1,\ldots,t_{i-1}$, Mallory either proposes a new query together with its noise parameter, or stops and outputs a decision bit:
+\begin{align*}
+&\mathcal{M}_i:\ (\R \sqcup \{\perp\})^{i-1} \to (\mathcal{P} \times \R^{\mathcal{D}})\,\sqcup\,\{0,1\},\\
+&\mathcal{M}_i(t_1,\ldots,t_{i-1}) = \begin{cases}
+  (p_i, f_i) & \text{continue with parameter }p_i\text{ and query }f_i: \mathcal{D}\to\R,\\
+  b\in\{0,1\} & \text{stop and output }b.
+\end{cases}
+\end{align*}
+Here $\perp$ stands for query rejected by the Server. We assume the following properties:
+\begin{enumerate}
+  \item $\mathcal{M}$ stops in at most $n$ steps for some fixed constant $n$.
+  \item For each $i\in [n]$, the sets $\mathcal{M}_i^{-1}(0)$ and $\mathcal{M}_i^{-1}(1)$ are Borel\footnote{It is a bit abuse of notation to use term Borel here, as $\mathcal{M}_i$ domain is not $\R^{i-1}$ but $(\R \cup \{\perp\})^{i - 1}$ but it is straightforward to define $\sigma$-algebra on such a set. It will contain $S$ and $\{\perp\} \cup S$ for all Borel $S$ in $\R^{i-1}$. The term Borel and measurable should be understand in that sense throughout the text}; consequently, the event of continuing is also well-defined.
+  \item $\mathcal{P} = \R^q$ for some fixed $q$, and the map $(t_1,\ldots,t_{i-1}) \mapsto p_i$ is measurable for all $i\in[n]$.
+  \item For every $D\in\mathcal{D}$ and every $i\in[n]$, the map $(t_1,\ldots,t_{i-1}) \mapsto f_i(D)$ is measurable.
+\end{enumerate}
+The server strategy acts as
+\begin{align*}
+&\mathcal{A}_i:\ \mathcal{D} \times \R^{i-1} \times \mathcal{P}^{i} \times (\R^{\mathcal{D}})^i \to \R \sqcup \{\perp\},\\
+&\mathcal{A}_i(D, t_1,\ldots,t_{i-1}, p_1, \ldots, p_i, f_1, \ldots, f_i) = \begin{cases}
+  t_i \in \R & \text{answer is released},\\
+  \perp & \text{query is rejected}.
+\end{cases}
+\end{align*}
+
+Let $\operatorname{Out}[\mathcal{M},\mathcal{A}](D)\in\{0,1\}$ denote the final output of $\mathcal{M}$ when interacting with $\mathcal{A}$ on dataset $D$. We say that $\mathcal{A}$ provides $(\eps,\delta)$-generalized adaptive differential privacy if, for every $\mathcal{M}$ satisfying the properties above, the probabilities below are well-defined and
+\begin{equation}
+  \label{eq:adapt}
+  \Pr[\operatorname{Out}[\mathcal{M},\mathcal{A}](D)=1] \leq e^{\eps}\Pr[\operatorname{Out}[\mathcal{M},\mathcal{A}](D')=1] + \delta
+\end{equation}
+for all neighboring $D,D'\in\mathcal{D}$.
+\end{definition}
+
+The definition above is very general. Although Mallory has no access to the server's internal randomness, she can post-process the transcript in ways that force the induced distribution to be for example singular, which complicates analysis a lot. We adopt a restricted definition which considers only absolutely continuous mappings. It doesn't although cover all practical cases, as for example Mallory can branch on server output yielding discrete random variable. 
+
+\begin{definition}[Adaptive differential privacy]
+We say that $\mathcal{A}$ provides $(\eps,\delta)$-adaptive differential privacy if \eqref{eq:adapt} holds for all $\mathcal{M}$ satisfying items 1-4 of Definition~\ref{def:generalized_adapt} and, additionally:
+\begin{enumerate}
+  \addtocounter{enumi}{4}
+  \item For every $i\in[n]$, the map $(t_1,\ldots,t_{i-1})\mapsto p_i$ is absolutely continuous.
+  \item For every $i\in[n]$ and every $D\in\mathcal{D}$, the map $(t_1,\ldots,t_{i-1})\mapsto f_i(D)$ is absolutely continuous
+\end{enumerate}
+\end{definition}
+
+With this restriction, we can design strategies such that we only deal with absolutely continuous random variables, which substantially simplifies the analysis. We first record auxiliary notions and lemmas that apply to reasonable strategies.
+
+\begin{definition}
+We call a server strategy $\mathcal{A}$ reasonable if, two following conditions hold:
+\begin{enumerate}
+\item Decision whether to accept query $f_i$ with parameter $p_i$ depends only on the previous successful queries and corresponding answers. It is independent of dataset as well as previous rejected queries. Formally consider two runs where server follows strategy $\mathcal{A}$: $(t_{1}, \ldots, t_{i - 1}, p_{1}, \ldots, p_{i}, f_{1}, \ldots, f_{i})$ and $(t'_{1}, \ldots, t'_{j - 1}, p'_{1}, \ldots, p'_{j}, f'_{1}, \ldots, f'_{j})$. Drop all of the queries which were rejected, let $\{q\}_{1}^{k}\subseteq[i - 1]$ be the indices of successful queries in first run and $\{q\}_{1}^{k'}\subseteq[j - 1]$ in the second. If 
+\[\begin{cases}
+k = k',\\ (t_{q_1}, \ldots t_{q_k}) = (t'_{q'_1}, \ldots t'_{q'_k}),\\ (p_{q_1}, \ldots p_{q_k}) = (p'_{q'_1}, \ldots p'_{q'_k}),\\ (f_{q_1}, \ldots f_{q_k}) = (f'_{q'_1}, \ldots f'_{q'_k}),\\ p_i = p'_{j}, f_i = f'_j,
+\end{cases}\]
+then for all $D, D' \in \mathcal{D}$,
+$$\mathcal{A}_i(D, t_1, \ldots, t_{i - 1}, p_1, \ldots, p_i, f_1, \ldots, f_{i}) = \perp \Leftrightarrow \mathcal{A}_j(D', t'_1, \ldots, t'_{j - 1}, p'_1, \ldots, p'_j, f'_1, \ldots, f'_{j}) = \perp.$$
+Note that we can build a family of predicates $r_{k}(t_1, \ldots, t_{k}, p_1, \ldots, p_k, f_1, \ldots, f_k, p_*, f_*)$  which tell if the query $p_*, f_*$ gets rejected by only considering previous successful queries ($r_k = 0$ is query was rejected, $1$ otherwise).
+\item Whenever a query is accepted at step $i$, $\mathcal{A}$ returns
+\[
+  \mathcal{A}_i(D, t_1,\ldots,t_{i-1}, p_1, \ldots, p_i, f_1, \ldots, f_i) = f_i(D) + \phi(p_i, X_i),
+\]
+where $X_1,X_2,\ldots$ is a sequence of i.i.d. absolutely continuous random variables, and $\phi$ is a scaling function absolutely continuous in its arguments on the codomain of $(p_i,X_i)$.
+\end{enumerate}
+\end{definition}
+
+\begin{lemma}
+  \label{lm:refused}
+Suppose there exists a reasonable server strategy $\mathcal{A}$ such that \eqref{eq:adapt} holds for all analyst strategies $\mathcal{M}$ satisfying items 1-6 above and making no rejected queries (i.e., all proposed queries are accepted). Then $\mathcal{A}$ is $(\eps,\delta)$-differentially private.
+\end{lemma}
+\begin{proof}
+Assume, toward a contradiction, that there exists some analyst strategy $\mathcal{M}$ (possibly with rejections) and neighboring $D,D'$ such that
+\[
+  \Pr[\operatorname{Out}[\mathcal{M},\mathcal{A}](D)=1] > e^{\eps}Pr[\operatorname{Out}[\mathcal{M},\mathcal{A}](D')=1] + \delta.
+\]
+Construct $\mathcal{M}'$ that, at each step $i$, first computes $(p_i,f_i)=\mathcal{M}_i(t_{1}, \ldots, t_{i - 1})$, then removes unsuccessful queries and evaluates the predicate $r_k$ to decide acceptance. If the query would be accepted, it forwards it to the server; otherwise, it returns "rejected" to its internal rule and proceeds. Because $\mathcal{A}$ is reasonable the probability that we reach $i$-th step as well as the conditional distribution of inputs to $\mathcal{M}_i$ given we reached $i$-th step is equal both when we run $\mathcal{M}$ against the server and as a part of $\mathcal{M}'$. Consider the step $i$, and condition on the $t_1, \ldots, t_{i - 1}$. Now the query and parameter $(p_i, f_i)$ are fixed. Decision if the query would be rejected is deterministic and same both for $\mathcal{M}$ being run against the server and as a part of $\mathcal{M}'$. If the query is not rejected answer distribution depends only on the query $(p_i, f_i)$ itself, so it is again the same for $\mathcal{M}$ being part of $\mathcal{M}'$ and communicating with server.
+\end{proof}
+
+\begin{lemma}
+  \label{lm:equal}
+Suppose there exists a reasonable server strategy $\mathcal{A}$ such that, for every $n$, \eqref{eq:adapt} holds for all analyst strategies $\mathcal{M}$ satisfying items 1-6 above, with no rejections, and making exactly $n$ queries. Then $\mathcal{A}$ is $(\eps,\delta)$-differentially private.
+\end{lemma}
+\begin{proof}
+By Lemma~\ref{lm:refused}, it suffices to consider analyst strategies that experience no rejections. Let $n$ be the maximal number of queries made with nonzero probability. If, with positive probability, $\mathcal{M}$ stops after $i<n$ queries, define $\mathcal{M}'$ that forces an additional $n-i$ dummy queries whose answers are ignored by the decision rule, and then outputs the same final bit as $\mathcal{M}$. The distribution of the final output remains unchanged, whereas $\mathcal{M}'$ now makes exactly $n$ queries. It can be easily seen because the same values of underlying $\mathcal{A}$ random variables $X_1, X_2, \ldots$ yield same answers of both $\mathcal{M}$ and $\mathcal{M}'$. This contradicts the hypothesis unless \eqref{eq:adapt} already holds.
+\end{proof}
+
+By using this two lemmas we can study only the strategies with the exact constant number of queries, that is we can consider transcript as a random vector taking values in $\R^n$ in ordinary sense. Moreover because of measurability conditions the probability of $\mathcal{M}$ answering $1$ is exactly the probability of $t = (t_1, \ldots, t_n)$ belonging to some Borel set $S_{\mathcal{M}}$. That's basically the definition used in original article so the further proof is the same, but we have formally reasoned that rejected queries and non-uniform number of queries made doesn't alter the situation.
+
+\begin{remark}
+For a reasonable algorithm, as $f_i(t_{\leq i - 1}), p_i(t_{\leq i - 1}), \phi$ are absolute continuous, and underlying noise r.v. $X_i$ are also absolute continuous we can consider transcript $t$ as an absolute continuous vector and operate with PDFs.
+\end{remark}
+
+\subsection{Composition for Laplacian noise strategy}
+
+\begin{theorem}[Composition for Laplacian noise]
+  \label{thm:adapt_laplacian}
+In the model above, let $p_i$ be the Laplacian scale parameter and $S(f)$ L1-sensitivity. The server has a privacy budget $\eps$ and rejects the $i$-th query if $\sum_{j=1}^{i} r_i \frac{S(f_j)}{p_j} > \eps$. Otherwise, it answers with the strategy:
+$$\mathcal{A}_i(D) = f_{i}(D) + \Lap(0, p_i).$$
+The strategy above guarantees $(\eps, 0)$-differential privacy.
+\end{theorem}
+\begin{proof}
+Firstly notice that server strategy is reasonable. Therefore we can operate with transcript as an absolutely continuous random vector, denote it $t(\mathcal{M}, D)$. Fix the dimension to be $n$. Moreover as no query was rejected $\sum_{i=1}^{n}\frac{S(f_j(t_1, \ldots, t_{i-1}))}{p_j(t_1, \ldots, p_{i - 1})} \leq \eps$. As in the Theorem~\ref{thm:laplacian} it is enough to prove that for any $\tau \in \R^n$ and neighboring $D, D' \in \mathcal{D}$ the PDF $\p[t(\mathcal{M}, D)](\tau) \leq e^{\eps}\p[t(\mathcal{M}, D')](\tau)$. We do so by conditional probability law:
+\begin{align*}
+&\frac{\p[t(\mathcal{M}, D)](\tau)}{\p[t(\mathcal{M}, D')](\tau)} = \\
+&\frac{\p[t_1(\mathcal{M}, D)](\tau_1)\p[t_2(\mathcal{M}, D) | t_1=\tau_1](\tau_2)  \ldots  \p[t_n(\mathcal{M}, D) | t_1=\tau_1, \ldots, t_{n - 1}=\tau_{n - 1}](\tau_n)}{\p[t_1(\mathcal{M}, D')](\tau_1)\p[t_2(\mathcal{M}, D') | t_1=\tau_1](\tau_2)  \ldots  \p[t_n(\mathcal{M}, D') | t_1=\tau_1, \ldots, t_{n - 1}=\tau_{n - 1}](\tau_n)} = \\
+&\prod_{i=1}^{n}\exp\left(-\frac{|f_i(D, \tau_1, \ldots, \tau_{i - 1}) - \tau_i|}{p_i(\tau_1, \ldots, \tau_{i - 1})} + \frac{|f_i(D', \tau_1, \ldots, \tau_{i - 1}) - \tau_i|}{p_i(\tau_1, \ldots, \tau_{i - 1})}\right) \overset{\textit{triangle inequality}}{\leq} \\
+&\prod_{i=1}^{n}\exp\left(\frac{|f_i(D, \tau_1, \ldots, \tau_{i - 1}) - f_i(D', \tau_1, \ldots, \tau_{i - 1})|}{p_i(\tau_1, \ldots, \tau_{i - 1})}\right) \leq \exp(\sum_{i=1}^n \frac{S(f_i(\tau_1, \ldots, \tau_{i - 1}))}{p_i(\tau_1, \ldots, \tau_{i - 1})}) \leq e^{\eps}
+\end{align*}
+\end{proof}
+
+\subsection{Advanced composition for Gaussian Noise}
+\begin{theorem}[Azuma's inequality for subgaussians]
+  \label{thm:azuma}
+  Suppose $X_0, \ldots, X_n$ is a martingale and $\mathcal{F}_0 \ldots, \mathcal{F}_n$ coresponding filtration. Suppose additionally that almost surely
+  $D_i = X_i - X_{i - 1}$ is a subgaussian random variable, that is exist constants $k_i$ such that is almost surely
+  $$\E[\exp\left(\lambda D_i\right) | \mathcal{F}_{i - 1}] \leq \exp(k_i^2\lambda^2)$$
+  for all $\lambda \in \R, i \in 1\ldots n$.
+  Then 
+  $$\Pr[|X_0 - X_{n}|\geq \epsilon] \leq 2\exp\left(-\frac{\epsilon^2}{4\sum_{i}k_i^2}\right)$$
+\end{theorem}
+
+\begin{proof}
+  We prove
+  $$* = \Pr[X_0 - X_{n}\geq \epsilon] \leq \exp\left(-\frac{\epsilon^2}{4\sum_{i}k_i^2}\right),$$
+  the inequality in opposite direction is proved similarly.
+  \begin{align*}&\Pr[X_0 - X_{n}\geq \epsilon] = \Pr[\exp(\lambda(X_0 - X_{n}))\geq e^{\lambda\epsilon}] \overset{\text{Markov}}{\leq}\\
+  &\frac{\E[\exp(\lambda(X_0 - X_{n}))]}{e^{\lambda\epsilon}} = 
+  \frac{\E[\exp(\sum_{i=1}^{n}\lambda D_i)]}{e^{\lambda\epsilon}} = \\
+  &\frac{\E[\E[\exp\left(\sum_{i=1}^{n-1}\lambda D_i\right)\exp\left(D_n\right)| \mathcal{F}_{n - 1}]]}{e^{\lambda\epsilon}} = \frac{\E[\exp\left(\sum_{i=1}^{n-1}\lambda D_i\right)\E[\exp\left(\lambda D_n\right)| \mathcal{F}_{n - 1}]]}{e^{\lambda\epsilon}}
+  \end{align*}
+  The last equality follows because $D_i, i < n$ are $\mathcal{F}_{n - 1}$ measurable. By theorem statement
+ $$\E[\exp\left(\lambda D_n\right)| \mathcal{F}_{n - 1}] \leq \exp(k_i^2\lambda^2),$$ continuing the derivation above inductively we arrive at 
+ $$* \leq \frac{\exp\left(\lambda^2 \sum_{i}k_i^2\right)}{e^{\lambda \epsilon}}.$$
+Select $\lambda = \frac{\epsilon}{2\sum_{i}k_i^2}$, then:
+$$* \leq \exp\left(-\frac{\epsilon^2}{2\sum_{i}k_i^2} + \frac{\epsilon^2}{4\sum_{i}k_i^2}\right) = \exp\left(-\frac{\epsilon^2}{4\sum_{i}k_i^2}\right).$$
+\end{proof}
+Now we are ready to prove the main theorem. It is the privacy bound for adaptive algorithm using the Gaussian noise. It uses subgaussians and martingale machinery and it is basically the reason I decided to choose this topic.
+\begin{theorem}[Composition for Gaussian noise]
+  \label{thm:adapt_gaussian}
+In the model above, let $p_i = \sigma_i$ be the parameter. Let $S(f)$ be L2-sensitivity. The server has a privacy budget $(\eps, \delta)$ and a parameter $\gamma$ defining the ratio between $\eps$ and $\delta$ used for a query. We further bound our model by allowing at most $n$ queries for a constant $n$ (previously $n$ depended on $\mathcal{M}$). Server rejects the $i$-th query if $\sum_{j=1}^{i}\frac{S^2(f_j)}{\sigma_j^2} + \gamma > \eps$ or $\frac{S(f_i)}{\sigma_i} > \frac{\gamma}{2\sqrt{n \ln (1/\delta)}} =: k$. Otherwise, it answers with the strategy:
+$$\mathcal{A}_i(D) = f_{i}(D) + \No(0, \sigma_i).$$
+The strategy above guarantees $(\eps, \delta)$-differential privacy.
+\end{theorem}
+\begin{proof}
+We start again by noticing that server strategy is reasonable, therefore all we have to do, is to prove that for any $n \in \N$, any Borel $S \in \R^{n}$ and any neighboring $D, D' \in \mathcal{D}$:
+ $$\Pr[(t_1(\mathcal{M}, D), \ldots, t_n(\mathcal{M}, D)) \in S] \leq e^{\eps}\Pr[(t_1(\mathcal{M}, D'), \ldots, t_n(\mathcal{M}, D')) \in S] + \delta.$$
+ Next we notice following already common PDF relation, to simplify writing we use notation $\tau_{\leq i} = (\tau_1, \ldots, \tau_{i})$. Denote $\Delta_i(\tau_{\leq i - 1}) = f_i(D, \tau_{\leq i - 1}) - f_i(D', \tau_{\leq i - 1}), \Delta(\tau_{\leq n - 1}) = (\Delta_{1}, \ldots, \Delta_n(\tau_{\leq n - 1}))$.
+ \begin{align*}
+&\frac{\p[t(\mathcal{M}, D)](\tau)}{\p[t(\mathcal{M}, D')](\tau)} =
+\frac{\p[t_1(\mathcal{M}, D)](\tau_1)  \ldots  \p[t_n(\mathcal{M}, D) | t_1=\tau_1, \ldots, t_{n - 1}=\tau_{n - 1}](\tau_n)}{\p[t_1(\mathcal{M}, D')](\tau_1)  \ldots  \p[t_n(\mathcal{M}, D') | t_1=\tau_1, \ldots, t_{n - 1}=\tau_{n - 1}](\tau_n)} = \\
+&\prod_{i=1}^{n}\exp\left(\frac{|\tau_i - f_i(D, \tau_{\leq i - 1}) + f_i(D, \tau_{\leq i - 1}) - f_i(D', \tau_{\leq i - 1}) |^2}{\sigma_i^2(\tau_{\leq i - 1})} - \frac{|\tau_i - f_i(D, \tau_{\leq i - 1})|^2}{\sigma_i^2(\tau_{\leq i - 1})}\right) \overset{\textit{triangle inequality}}{\leq} \\
+&\exp\left(\sum_{i}^{n}\frac{|f_i(D, \tau_{\leq i - 1}) - f_i(D', \tau_{\leq i - 1})|^2}{\sigma_i^2(\tau_{\leq i - 1})} + \frac{2(\tau_i - f_i(D, \tau_{\leq i - 1}))(f_i(D', \tau_{\leq i - 1}) - f_i(D', \tau_{\leq i - 1}))}{\sigma_i^2(\tau_{\leq i - 1})}\right) \leq \\
+&\exp\left(\sum_{i}^n\frac{|\Delta_i|^2}{\sigma^2_i(\tau_{\leq i - 1})} + \left|\sum_{i}^n\frac{(\tau_i - f_i(D, \tau_{\leq i - 1}))\Delta_i}{\sigma^2_i(\tau_{\leq i - 1})}\right|\right)
+\end{align*}
+
+Denote $C = \{\tau : \left|\sum_{i}^n\frac{(\tau_i - f_i(D, \tau_{\leq i - 1}))\Delta_i}{\sigma^2_i(\tau_{\leq i - 1})}\right| \leq \gamma\}$ (it is Borel as it is a preimage of measurable function).
+Consider arbitrary Borel set $S$ inside $C$. As no queries are rejected $\sum_{i}^{n}\frac{S(f_i)}{\sigma_i^2} ???$
+
+Now we are to prove that the probability of $t(\mathcal{M}, D)$ being outside of $C$ is small using Azuma's inequality~\ref{thm:azuma}.
+
+We define filtration in following manner $\mathcal{F}_i = \sigma(t_1(\mathcal{M}, D), \ldots t_i(\mathcal{M}, D))$, and consider a Doob martingale:
+$$X_n = \sum_{i}^n\frac{(\tau_i - f_i(D, \tau_{\leq i - 1}))\Delta_i}{\sigma^2_i(\tau_{\leq i - 1})},$$
+$$X_0 = E[X_n], X_i = E[X_n | \mathcal{F}_{i}].$$
+Next we notice that $X_0 = 0$, indeed:
+\begin{multline*}X_0 = \E\left[\sum_{i}^n\frac{(t_i - f_i(D, t_{\leq i - 1}))\Delta_i(t_{\leq i - 1})}{\sigma^2_i(t_{\leq i - 1})}\right] = \sum_{i}^n\E\left[\E\left[\frac{(t_i - f_i(D, t_{\leq i - 1}))\Delta_i(t_{\leq i - 1})}{\sigma^2_i(t_{\leq i - 1})}|\mathcal{F}_i\right]\right] = \\
+  \sum_{i}^n\E\left[\frac{\E\left[(t_i - f_i(D, t_{\leq i - 1}))|\mathcal{F}_i\right]\Delta_i(t_{\leq i - 1})}{\sigma^2_i(t_{\leq i - 1})}\right] = 0.
+\end{multline*}
+The last equality holds because when conditioning the value under internal expectation is distributed normally with expectation $0$.
+Next we consider $D_i = X_i - X_{i - 1}, i \in [n]$.
+\begin{multline*}
+  D_i = \E[X_n|\mathcal{F}_i] - \E[X_n|\mathcal{F}_{i-1}] = \E[X_n - \E[X_n|\mathcal{F}_{i-1}] |\mathcal{F}_i] = \\
+  \sum_{j}^{n}\E\left[\frac{(t_j - f_j(D, t_{\leq j-1}))\Delta_j(t_{\leq j - 1})}{\sigma_{j}^2(t_{\leq j-1})} - E\left[\frac{(t_j - f_j(D, t_{\leq j-1}))\Delta_j(t_{\leq j - 1})}{\sigma_{j}^2(t_{\leq j-1})}|\mathcal{F}_{i-1}\right]| \mathcal{F}_{i}\right].
+\end{multline*}
+We consider summands $j < i, j = i$ and $j > i$ separately. Denote $S_j(t_{\leq j}) = \frac{(t_j - f_j(D, t_{\leq j-1}))\Delta_j(t_{\leq j - 1})}{\sigma_{j}^2(t_{\leq j-1})}.$
+\begin{enumerate}
+\item $j \leq i - 1$: $S_{j}(t_{\leq j})$ is $\mathcal{F}_{i - 1}$ measurable, therefore
+\[
+  \E\left[S_{j}(t_{\leq j})|\mathcal{F}_{i-1}\right] = S_j(t_{\leq j}) \Rightarrow\\ \E\left[S_j(t_{\leq j}) - \E\left[S_j(t_{\leq j})| \mathcal{F}_{i-1}\right]| \mathcal{F}_{i}\right] = 0.
+\]
+\item $j \geq i + 1$: Firstly we notice:
+ \begin{multline*}
+ \E[S_j(t_{\leq j})| \mathcal{F}_{j - 1}] = \E\left[\frac{(t_j - f_j(D, t_{\leq j-1}))\Delta_j(t_{\leq j - 1})}{\sigma_{j}^2(t_{\leq j-1})}|\mathcal{F}_{j-1}\right] = \\
+ \frac{\E\left[t_j - f_j(D, t_{\leq j-1})|\mathcal{F}_{j-1}\right]\Delta_j(t_{\leq j - 1})}{\sigma_{j}^2(t_{\leq j-1})} = 0.
+ \end{multline*}
+ The last line holds because when conditioned to $\mathcal{F}_{j - 1}$, random variable $t_j - f_j(D, t_{\leq j-1})$ has normal distribution with zero mean. Therefore:
+ $$\E\left[S_{j}(t_{\leq j})|\mathcal{F}_{i}\right] - \E\left[S_{j}(t_{\leq j})|\mathcal{F}_{i-1}\right] = \E\left[\E\left[S_{j}(t_{\leq j})|\mathcal{F}_{j - 1}\right]| \mathcal{F}_{i}\right] - \E\left[\E\left[S_{j}(t_{\leq j})|\mathcal{F}_{j - 1}\right]| \mathcal{F}_{i - 1}\right] = 0$$
+ \item $j = i$: Notice, that as $\E\left[S_{i}(t_{\leq i})|\mathcal{F}_{i-1}\right] = 0$,
+ $$\E\left[S_{j}(t_{\leq j})|\mathcal{F}_{i}\right] - \E\left[S_{j}(t_{\leq j})|\mathcal{F}_{i-1}\right] = \E\left[S_{i}(t_{\leq i})|\mathcal{F}_{i}\right] = S_{i}(t_{\leq i}).$$
+ Last line again follows as $S_i$ is $\mathcal{F}_{i}$ measurable.
+\end{enumerate}
+Therefore $D_i = \E\left[S_{i}(t_{\leq i})|\mathcal{F}_{i}\right]$. We need a subgaussian bound for $D_i$ to apply Theorem~\ref{thm:azuma}. To be more precise we have to bound
+\begin{multline*}
+  \E\left[\exp(\lambda D_i)|\mathcal{F}_{i - 1}\right] = \E\left[\exp(\lambda S_i(t_{\leq i}))|\mathcal{F}_{i - 1}\right] = \\
+  \E\left[\exp\left(\lambda \frac{(t_i - f_i(t_{\leq i - 1}))\Delta_i(t_{\leq i - 1})}{\sigma^2_{i}(t_{\leq i - 1})}\right)|\mathcal{F}_{i - 1}\right] = *.
+\end{multline*}
+Notice that under such conditioning $\frac{(t_i - f_i(t_{\leq i - 1}))\Delta_i(t_{\leq i - 1})}{\sigma^2_{i}(t_{\leq i - 1})}$ has distribution $\No(0, \frac{|\Delta^2_i(t_{\leq i - 1})|}{\sigma^2(t_{\leq i - 1})})$. By a moment generating function of Gaussian:
+$* = \frac{\lambda^2\Delta^2(t_{\leq i - 1})}{2\sigma^2(t_{\leq i - 1})} \leq \lambda^2k^2$.\\
+Finally we apply Theorem~\ref{thm:azuma} which yields that:
+$$\Pr[|X_n| \geq \gamma] = \Pr[|X_0 - X_n| \geq \gamma] \leq \exp\left(-\frac{\gamma^2}{4nk^2}\right) = \delta.$$
+Now for arbitrary Borel set $T$ we can decompose it into $S \sqcup S', S \subseteq C, S' \cap C = \varnothing$,
+\begin{multline*}
+\Pr[t(\mathcal{M}, D) \in T] = \Pr[t(\mathcal{M}, D) \in S] + \Pr[t(\mathcal{M}, D) \in S'] \leq\\
+ e^{\eps}\Pr[t(\mathcal{M}, D') \in S] + \Pr[t(\mathcal{M}, D) \not\in C] \leq e^{\eps}\Pr[t(\mathcal{M}, D') \in T] + \delta.
+\end{multline*}
+\end{proof}
+Now we select optimal parameters.
+\begin{corollary}
+  Suppose we want to build $(\eps_0, \delta_0)$ private strategy for $\eps_0 \leq 4, \delta_0 \leq 0.1$. Select $\gamma = \frac{1}{2}\eps_0$, $k = \frac{\eps_0}{4\sqrt{n \ln (1/\delta_0)}}$. Then strategy $\mathcal{A}$ is $(\eps_0, \delta_0)$-differentially private.
+\end{corollary}
+\begin{proof}
+  By Theorem~\ref{thm:adapt_gaussian},
+$$\eps \leq \sum_{i=1}^{n}\frac{S(f_i)^2}{\sigma_i^2} + \gamma \leq nk^2 + \gamma = 
+n\frac{\gamma^2}{2n\ln(1/\delta_0)} + \gamma = \frac{\eps_0^2}{8\ln(1/\delta_0)} + \frac{\eps_0}{2} \leq \eps_0,$$
+as $\eps_0 \leq 4, \ln(1/\delta_0) > 1$.
+$\delta \leq \delta_0$ follows because $\frac{S(f_i)}{\sigma_i} \leq k$ a.s. for each query.
+\end{proof}
+
+\section{Further work}
+\begin{enumerate}
+  \item We have restricted Mallory strategies only to those operating with absolutely continuous functions to simplify analysis. In fact even when $f_i$ or $p_i$ is discrete the resulting transcript can be absolutely continuous for a reasonable server strategy. For example let $t_1 \sim \No(0, 1)$, and $t_2 = f_2 + \No(0, 1) = \mathbf{I}[t_1 \leq 0] + \No(0, 1)$. Then CDF of $\mathbf{F}_{t_2}(x) = \frac{1}{2}\Phi(x) + \frac{1}{2}\Phi(x - 1)$ which is obviously absolute continuous. So more broad criterion for allowed Mallory strategies would benefit the paper.
+  \item In the Theorem~\ref{thm:adapt_gaussian} we basically force Mallory to use specific sigma for query, by rejection condition, while in~\ref{thm:adapt_laplacian} scaling factor for the noise can be arbitrary as far as sum condition holds. The bound for fixed $n$ in gaussian case is required for the same reason, we have to know how to distribute privacy budget between queries. We could overcome this if the $k_i$ in the bound in the Azuma's inequality were random variables themselves with their second norm limited almost surely with a constant. Yet I haven't found a proof to the such inequality.
+\end{enumerate}
 \bibliographystyle{plainurl}
 \bibliography{bibl}
 \end{document}
